@@ -421,6 +421,7 @@ def build_replay(replay_path, stages, original, engine_note=None):
 
 # ---------------------------------------------------------------- 视频模式
 VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv"}
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff"}
 
 
 def _ffmpeg_h264(out_dir, names):
@@ -633,6 +634,8 @@ def main():
                     help="照片转动漫风格（AnimeGANv2 ONNX，图片与视频均支持）")
     ap.add_argument("--animate-diff", action="store_true",
                     help="视频用 AnimateDiff 帧间一致性神经上色（替代逐帧上色，需额外权重）")
+    ap.add_argument("--debug", action="store_true",
+                    help="出错时显示完整堆栈（默认只显示一句话原因）")
     args = ap.parse_args()
 
     inp = args.input
@@ -646,8 +649,14 @@ def main():
         files = [inp]
 
     for f in files:
+        if not os.path.exists(f):
+            print("跳过（文件不存在）: %s" % f)
+            continue
+        ext = os.path.splitext(f)[1].lower()
+        if ext not in IMAGE_EXTS and ext not in VIDEO_EXTS:
+            print("跳过（不支持的文件类型 %s）: %s" % (ext or "无扩展名", f))
+            continue
         try:
-            ext = os.path.splitext(f)[1].lower()
             if ext in VIDEO_EXTS:
                 out = args.out or os.path.join(os.path.dirname(os.path.abspath(f)) or ".", "out_video")
                 process_video(f, out, line_eps=args.lines, k=args.k,
@@ -674,9 +683,11 @@ def main():
                               input_lineart=args.input_lineart,
                               photo_color=args.photo_color,
                               anime_gan=args.anime_gan)
-        except Exception:
-            print("处理失败: %s" % f)
-            traceback.print_exc()
+        except Exception as e:
+            if args.debug:
+                traceback.print_exc()
+            else:
+                print("处理失败 %s: %s" % (os.path.basename(f), e))
 
 
 if __name__ == "__main__":

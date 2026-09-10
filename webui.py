@@ -235,17 +235,18 @@ PAGE = """<!DOCTYPE html>
   };
   function nextJob(){
     if(!queue.length){ bar.style.width='100%'; status.textContent='全部完成'; run.disabled=false; return; }
-    var f=queue.shift();
+    var f=queue.shift(), jobT0=Date.now();
     status.textContent='上传 '+f.name+' …'; bar.style.width='5%';
     fetch('/api/run?'+qs(),{method:'POST',body:f,headers:{'X-Filename':encodeURIComponent(f.name)}})
       .then(function(r){return r.json();}).then(function(d){
         if(!d.ok){ status.textContent='启动失败('+f.name+'): '+d.error; run.disabled=false; return; }
-        poll(f.name);
+        poll(f.name, jobT0);
       }).catch(function(e){ status.textContent='上传失败('+f.name+'): '+e; run.disabled=false; });
   }
-  function poll(fname){
+  function poll(fname, jobT0){
     fetch('/api/status').then(function(r){return r.json();}).then(function(d){
-      if(d.state==='running'){ bar.style.width='30%'; status.textContent='['+fname+'] '+d.message+'（已运行 '+d.elapsed.toFixed(0)+' 秒）'; setTimeout(function(){poll(fname);},1500); }
+      var el=(Date.now()-jobT0)/1000;
+      if(d.state==='running'){ bar.style.width='30%'; status.textContent='['+fname+'] '+d.message+'（已运行 '+el.toFixed(0)+' 秒）'; setTimeout(function(){poll(fname,jobT0);},1500); }
       else if(d.state==='done'){
         var html='<div class="group"><div class="gtitle">'+fname+' · 用时 '+d.elapsed.toFixed(1)+' 秒</div><div class="grid">';
         d.images.forEach(function(it){ html+='<div class="item"><img src="'+it.url+'"><div class="lbl">'+it.name+'</div></div>'; });
@@ -257,7 +258,7 @@ PAGE = """<!DOCTYPE html>
         setTimeout(nextJob, 300);
       }
       else if(d.state==='error'){ bar.style.width='0'; status.textContent='处理失败('+fname+')';
-        err.style.display='block'; err.textContent='['+fname+']\n'+d.error;
+        err.style.display='block'; err.textContent='['+fname+']\\n'+d.error;
         if(queue.length){ status.textContent='跳过 '+fname+'，继续剩余 '+queue.length+' 个…'; setTimeout(nextJob, 300); }
         else run.disabled=false;
       }

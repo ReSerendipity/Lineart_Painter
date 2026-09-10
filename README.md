@@ -110,6 +110,11 @@ python lineart_painter.py photo.png --anime-gan
 python lineart_painter.py --help
 ```
 
+小提示：
+
+- 文件不存在或不支持的扩展名会被自动跳过并提示，不需要手动清理。
+- 处理失败时默认只打印一句话原因；需要完整堆栈排查时加 `--debug`。
+
 ## 可选模型
 
 模型权重没有提交到 Git 仓库，因为它们体积很大，并且部分模型受各自上游项目许可证和下载条款约束。用 `python setup_models.py` 一键下载（来自 hf-mirror 镜像），程序从本地目录读取：

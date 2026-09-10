@@ -17,8 +17,6 @@ import shutil
 import sys
 import traceback
 
-import cv2
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "smoke_out")
 INPUT = os.path.join(HERE, "demo_input.png")

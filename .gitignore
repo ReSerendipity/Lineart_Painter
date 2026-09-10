@@ -11,6 +11,7 @@ weights/
 out_*/
 uploads/
 webout/
+demo_ext/
 *.mp4
 *.avi
 *.mov
