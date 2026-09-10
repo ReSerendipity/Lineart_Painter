@@ -202,6 +202,23 @@ def export_lineart_svg(line_binary, out_svg):
 
 
 # ---------------------------------------------------------------- 主流水线
+def _make_cond(cn_variant, rgb, gray01, line_binary):
+    """按 ControlNet 变体生成条件图（uint8 单通道）。
+
+    lineart 系列（anime/standard/scribble）：白底黑线；
+    canny：白底黑边缘；depth：近白远黑深度灰度图。
+    """
+    if cn_variant == "canny":
+        edges = cv2.Canny((gray01 * 255).astype(np.uint8), 100, 200)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        edges = cv2.dilate(edges, kernel, iterations=1)
+        return np.where(edges > 0, 0, 255).astype(np.uint8)
+    if cn_variant == "depth":
+        from neural import depth_map
+        return depth_map(rgb)
+    return np.where(line_binary > 0, 0, 255).astype(np.uint8)
+
+
 def process_image(src, out_dir, line_eps=0.02, k=10, neural_lineart=False,
                   neural_color=False, prompt=None, seed=None,
                   a2s_variant="improved", cn_variant="anime", strength=None,
@@ -263,10 +280,10 @@ def process_image(src, out_dir, line_eps=0.02, k=10, neural_lineart=False,
     if neural_color:
         from neural import DEFAULT_PROMPT, NeuralColorizer
         colorizer = NeuralColorizer(cn_variant=cn_variant)
-        line_gray = np.where(line_binary > 0, 0, 255).astype(np.uint8)  # 白底黑线
         pr = prompt or DEFAULT_PROMPT
+        cond = _make_cond(cn_variant, rgb, gray01, line_binary)
         neural_final = colorizer.colorize(
-            line_gray, pr, seed=seed, strength=strength,
+            cond, pr, seed=seed, strength=strength,
             init_rgb=rgb if strength else None)
         stages.append(("final_neural", neural_final, "FINAL 神经上色(ControlNet)"))
 
@@ -406,14 +423,46 @@ def build_replay(replay_path, stages, original, engine_note=None):
 VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv"}
 
 
+def _ffmpeg_h264(out_dir, names):
+    """把 out_dir 下指定 mp4 用 ffmpeg 转成 H.264（mp4v 兼容性差）。"""
+    import shutil
+    import subprocess
+    ffmpeg_exe = shutil.which("ffmpeg")
+    if ffmpeg_exe is None:
+        try:
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            ffmpeg_exe = None
+    if not ffmpeg_exe:
+        print("  (ffmpeg 未安装，视频保持 mp4v 编码)")
+        return []
+    made = []
+    for name in names:
+        srcv = os.path.join(out_dir, name)
+        dstv = os.path.join(out_dir, name.replace(".mp4", "_h264.mp4"))
+        if not os.path.exists(srcv):
+            continue
+        subprocess.run([ffmpeg_exe, "-y", "-i", srcv, "-c:v", "libx264",
+                        "-crf", "18", "-pix_fmt", "yuv420p", dstv],
+                       capture_output=True)
+        if os.path.exists(dstv):
+            made.append(dstv)
+            print("  ffmpeg H.264 转码完成: " + dstv)
+    return made
+
+
 def process_video(src, out_dir, line_eps=-0.10, k=10, max_side=1280,
                   neural_lineart=False, a2s_variant="improved",
                   neural_color=False, prompt=None, seed=None,
-                  cn_variant="anime", strength=None, input_lineart=False):
+                  cn_variant="anime", strength=None, input_lineart=False,
+                  photo_color=False, anime_gan=False, animate_diff=False):
     """视频 -> 逐帧 线稿/填色/还原 -> 合成输出视频（video_final.mp4 与 video_lineart.mp4）。
 
     首帧做 k-means 取聚类中心，后续帧复用中心，保证颜色不闪烁。
     --neural-color 时：每帧用 ControlNet+SD 神经上色（较慢，帧间用固定种子保稳）。
+    --animate-diff 时：改为 AnimateDiff 帧间一致生成（16 帧一段），闪烁显著减少。
+    --photo-color / --anime-gan 时：整段视频另输出 DDColor 上色 / 动漫风格版。
     """
     colorizer = None
     pr = prompt
@@ -433,10 +482,15 @@ def process_video(src, out_dir, line_eps=-0.10, k=10, max_side=1280,
     if oh % 2:
         oh += 1
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    vw_final = cv2.VideoWriter(os.path.join(out_dir, "video_final.mp4"), fourcc, fps, (ow, oh))
-    vw_line = cv2.VideoWriter(os.path.join(out_dir, "video_lineart.mp4"), fourcc, fps, (ow, oh))
+    vw_final = None
+    if not animate_diff:  # AnimateDiff 模式：线稿收集完再生成，最后才写
+        vw_final = cv2.VideoWriter(os.path.join(out_dir, "video_final.mp4"),
+                                   fourcc, fps, (ow, oh))
+    vw_line = cv2.VideoWriter(os.path.join(out_dir, "video_lineart.mp4"),
+                              fourcc, fps, (ow, oh))
     centers = None
     previews = {}
+    line_frames = [] if animate_diff else None
     idx = 0
     step = max(1, (total or 300) // 5)
     while True:
@@ -455,15 +509,17 @@ def process_video(src, out_dir, line_eps=-0.10, k=10, max_side=1280,
             line_binary, _ = a2s_sketch_binary(rgb, variant=a2s_variant)
         else:
             line_binary = extract_lineart(gray01, eps=line_eps)
-        if neural_color:
+        if animate_diff:
+            line_frames.append(np.where(line_binary > 0, 0, 255).astype(np.uint8))
+        elif neural_color:
             # 神经上色（每帧 ControlNet+SD，帧间固定种子保持稳定）
             if colorizer is None:
                 from neural import DEFAULT_PROMPT, NeuralColorizer
                 colorizer = NeuralColorizer(cn_variant=cn_variant)
                 pr = prompt or DEFAULT_PROMPT
-            line_gray = np.where(line_binary > 0, 0, 255).astype(np.uint8)
+            cond = _make_cond(cn_variant, rgb, gray01, line_binary)
             final_lines = colorizer.colorize(
-                line_gray, pr, seed=vseed, strength=strength,
+                cond, pr, seed=vseed, strength=strength,
                 init_rgb=rgb if strength else None)
         else:
             if centers is None:
@@ -479,39 +535,66 @@ def process_video(src, out_dir, line_eps=-0.10, k=10, max_side=1280,
             final_lines[line_binary > 0] = (26, 27, 28)
         lineart = np.full((oh, ow, 3), 255, np.uint8)
         lineart[line_binary > 0] = (26, 27, 28)
-        vw_final.write(cv2.cvtColor(final_lines, cv2.COLOR_RGB2BGR))
+        if vw_final is not None:
+            vw_final.write(cv2.cvtColor(final_lines, cv2.COLOR_RGB2BGR))
         vw_line.write(cv2.cvtColor(lineart, cv2.COLOR_RGB2BGR))
         if idx % step == 0 or idx == 0:
-            previews[idx] = final_lines
+            previews[idx] = lineart if animate_diff else final_lines
         idx += 1
         if idx % 30 == 0:
             print("  帧 %d/%d" % (idx, total or idx))
     cap.release()
-    vw_final.release()
+    if vw_final is not None:
+        vw_final.release()
     vw_line.release()
+    if animate_diff:
+        # AnimateDiff 帧间一致性生成（16 帧一段；低分辨率输入用 384 提速省显存）
+        from neural import DEFAULT_PROMPT, AnimateDiffColorizer
+        adc = AnimateDiffColorizer(cn_variant=cn_variant)
+        asize = 384 if max_side <= 640 else 512
+        outs = adc.colorize_frames(line_frames, prompt or DEFAULT_PROMPT,
+                                   seed=vseed, size=asize)
+        vw_final = cv2.VideoWriter(os.path.join(out_dir, "video_final.mp4"),
+                                   fourcc, fps, (ow, oh))
+        for rgb in outs:
+            vw_final.write(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
+        vw_final.release()
+        for fi, img in list(previews.items()):
+            if fi < len(outs):
+                previews[fi] = outs[fi]
     for fi, img in previews.items():
         imwrite_rgb(os.path.join(out_dir, "preview_f%05d.png" % fi), img)
     # ffmpeg 转码：mp4v -> H.264（兼容性更好、体积更小）
-    import shutil
-    import subprocess
-    ffmpeg_exe = shutil.which("ffmpeg")
-    if ffmpeg_exe is None:
-        try:
-            import imageio_ffmpeg
-            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-        except Exception:
-            ffmpeg_exe = None
-    if ffmpeg_exe:
-        for name in ("video_final.mp4", "video_lineart.mp4"):
-            srcv = os.path.join(out_dir, name)
-            dstv = os.path.join(out_dir, name.replace(".mp4", "_h264.mp4"))
-            subprocess.run([ffmpeg_exe, "-y", "-i", srcv, "-c:v", "libx264",
-                            "-crf", "18", "-pix_fmt", "yuv420p", dstv],
-                           capture_output=True)
-            if os.path.exists(dstv):
-                print("  ffmpeg H.264 转码完成: " + dstv)
-    else:
-        print("  (ffmpeg 未安装，视频保持 mp4v 编码)")
+    _ffmpeg_h264(out_dir, ["video_final.mp4", "video_lineart.mp4"])
+
+    # 扩展模型：整段视频逐帧应用 照片上色 / 动漫风格化
+    for flag, label, writer_name in (
+            (photo_color, "照片上色(DDColor)", "video_photo_color.mp4"),
+            (anime_gan, "动漫风格(AnimeGANv2)", "video_anime_style.mp4")):
+        if not flag:
+            continue
+        from neural import DDColorizer, AnimeGAN
+        fx = DDColorizer() if label.startswith("照片") else AnimeGAN()
+        cap2 = cv2.VideoCapture(src)
+        vw = cv2.VideoWriter(os.path.join(out_dir, writer_name), fourcc,
+                             fps, (ow, oh))
+        n = 0
+        while True:
+            ok, frame = cap2.read()
+            if not ok:
+                break
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if scale < 1.0:
+                rgb = cv2.resize(rgb, (ow, oh), interpolation=cv2.INTER_AREA)
+            out_rgb = fx.colorize(rgb) if label.startswith("照片") \
+                else fx.stylize(rgb)
+            vw.write(cv2.cvtColor(out_rgb, cv2.COLOR_RGB2BGR))
+            n += 1
+            if n % 15 == 0:
+                print("  %s 帧 %d/%d" % (label, n, total or n))
+        cap2.release()
+        vw.release()
+        _ffmpeg_h264(out_dir, [writer_name])
     print("完成视频: %s -> %s (共%d帧, %.1ffps, 输出%dx%d)" % (src, out_dir, idx, fps, ow, oh))
     return out_dir
 
@@ -536,16 +619,20 @@ def main():
                     help="神经上色随机种子（固定可复现）")
     ap.add_argument("--a2s", default="improved", choices=["default", "improved"],
                     help="Anime2Sketch 权重变体（improved 质量更高）")
-    ap.add_argument("--cn", default="anime", choices=["anime", "standard"],
-                    help="ControlNet 变体：anime=动漫线稿专用(默认)，standard=通用线稿")
+    ap.add_argument("--cn", default="anime",
+                    choices=["anime", "standard", "canny", "scribble", "depth"],
+                    help="ControlNet 变体：anime=动漫线稿(默认), standard=通用线稿, "
+                         "canny=边缘, scribble=草图, depth=深度")
     ap.add_argument("--neural-strength", type=float, default=None, metavar="0-1",
                     help="img2img 混合强度：用原图风格还原（越接近0越贴近原图，0.35~0.6 推荐）")
     ap.add_argument("--input-lineart", action="store_true",
                     help="输入已是线稿（跳过线稿提取，直接填色/上色）")
     ap.add_argument("--photo-color", action="store_true",
-                    help="黑白/灰度照片自动上色（DDColor，仅图片）")
+                    help="黑白/灰度照片自动上色（DDColor，图片与视频均支持）")
     ap.add_argument("--anime-gan", action="store_true",
-                    help="照片转动漫风格（AnimeGANv2 ONNX，仅图片）")
+                    help="照片转动漫风格（AnimeGANv2 ONNX，图片与视频均支持）")
+    ap.add_argument("--animate-diff", action="store_true",
+                    help="视频用 AnimateDiff 帧间一致性神经上色（替代逐帧上色，需额外权重）")
     args = ap.parse_args()
 
     inp = args.input
@@ -571,7 +658,10 @@ def main():
                               prompt=args.prompt, seed=args.seed,
                               cn_variant=args.cn,
                               strength=args.neural_strength,
-                              input_lineart=args.input_lineart)
+                              input_lineart=args.input_lineart,
+                              photo_color=args.photo_color,
+                              anime_gan=args.anime_gan,
+                              animate_diff=args.animate_diff)
             else:
                 out = args.out or os.path.join(os.path.dirname(os.path.abspath(f)) or ".", "out")
                 process_image(f, out, line_eps=args.lines, k=args.k,

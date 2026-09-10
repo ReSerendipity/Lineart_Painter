@@ -4,14 +4,13 @@ webui.py — lineart_painter 本地 Web 界面（双击启动，浏览器操作�
 ==============================================================
 纯 Python 标准库实现，无额外依赖。用法：
     python webui.py            # 默认 http://127.0.0.1:8765
-启动后浏览器打开即可：选图/视频 -> 调参数 -> 运行 -> 查看分步结果与视频。
+启动后浏览器打开即可：选图/视频（支持多选批量）-> 调参数 -> 运行 -> 查看分步结果与视频。
 
 配套双击启动文件：启动程序.cmd
 """
 
 import json
 import os
-import shutil
 import sys
 import threading
 import time
@@ -46,7 +45,7 @@ STAGE_LABELS = {
 
 # ---------------- 运行状态 ----------------
 _state = {"state": "idle", "message": "", "elapsed": 0.0, "images": [],
-          "videos": [], "out_dir": None, "error": None}
+          "videos": [], "out_dir": None, "error": None, "file": ""}
 _lock = threading.Lock()
 
 
@@ -57,8 +56,9 @@ def _set_state(**kw):
 
 def _run_job(src, out_dir, params):
     t0 = time.time()
+    fname = os.path.basename(src)
     try:
-        _set_state(state="running", message="处理中…", error=None)
+        _set_state(state="running", message="处理中…", error=None, file=fname)
         ext = os.path.splitext(src)[1].lower()
         if ext in lp.VIDEO_EXTS:
             lp.process_video(
@@ -72,7 +72,11 @@ def _run_job(src, out_dir, params):
                 prompt=params.get("prompt") or None,
                 seed=params.get("seed"),
                 cn_variant=params.get("cn", "anime"),
-                strength=params.get("strength"))
+                strength=params.get("strength"),
+                input_lineart=params.get("input_lineart", False),
+                photo_color=params.get("photo_color", False),
+                anime_gan=params.get("anime_gan", False),
+                animate_diff=params.get("animate_diff", False))
         else:
             lp.process_image(
                 src, out_dir,
@@ -119,15 +123,20 @@ PAGE = """<!DOCTYPE html>
   .field{display:flex;flex-direction:column;gap:4px}
   .field label{font-size:12px;color:#7A828E}
   select,input[type=number],input[type=text]{background:#0E1116;color:#E8EAED;border:1px solid #343D4A;border-radius:8px;padding:7px 10px;font-size:13px}
-  .drop{border:2px dashed #343D4A;border-radius:12px;padding:22px;text-align:center;color:#7A828E;font-size:13px;cursor:pointer}
+  .drop{border:2px dashed #343D4A;border-radius:12px;padding:18px;text-align:center;color:#7A828E;font-size:13px;cursor:pointer}
   .drop.on{border-color:#A3D5E8;color:#A3D5E8}
+  .flist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .fchip{display:flex;gap:8px;align-items:center;background:#0E1116;border:1px solid #343D4A;border-radius:8px;padding:5px 10px;font-size:12px}
+  .fchip button{background:none;border:none;color:#EA6668;cursor:pointer;font-size:14px;padding:0 2px}
   .btn{background:#A3D5E8;color:#0E1116;border:none;border-radius:8px;padding:9px 20px;font-size:14px;font-weight:600;cursor:pointer}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .bar{height:6px;background:#232A34;border-radius:3px;overflow:hidden;margin:12px 0 6px}
   .bar i{display:block;height:100%;width:0;background:#A3D5E8;transition:width .4s}
   .status{font-size:12px;color:#7A828E;min-height:18px}
+  .group{background:#151A22;border:1px solid #232A34;border-radius:12px;padding:14px;margin-bottom:14px}
+  .gtitle{font-size:14px;font-weight:600;color:#A3D5E8;margin-bottom:10px}
   .grid{display:flex;flex-wrap:wrap;gap:12px}
-  .item{flex:1 1 300px;min-width:0;background:#151A22;border:1px solid #232A34;border-radius:10px;padding:10px}
+  .item{flex:1 1 280px;min-width:0;background:#0E1116;border:1px solid #232A34;border-radius:10px;padding:10px}
   .item img,.item video{width:100%;height:auto;border-radius:8px;display:block;background:#0E1116}
   .item .lbl{font-size:12px;color:#7A828E;margin-top:8px}
   .err{background:#2A1518;border:1px solid #5C2A30;border-radius:8px;padding:10px;font-size:12px;color:#F3A3A8;white-space:pre-wrap;display:none}
@@ -135,18 +144,19 @@ PAGE = """<!DOCTYPE html>
 </style></head>
 <body><div class="wrap">
   <h1>lineart_painter · AI 临摹重绘工作台</h1>
-  <div class="sub">图片/视频 → 线稿 → 填色 → 还原 · 本机运行（神经引擎需要 GPU）</div>
+  <div class="sub">图片/视频 → 线稿 → 填色 → 还原 · 本机运行（神经引擎需要 GPU）· 支持多选批量</div>
 
   <div class="card">
-    <div class="drop" id="drop">点击选择 或 拖入图片/视频文件</div>
-    <input type="file" id="file" accept=".png,.jpg,.jpeg,.bmp,.webp,.mp4,.avi,.mov,.mkv,.webm" hidden>
+    <div class="drop" id="drop">点击选择 或 拖入图片/视频文件（可多选）</div>
+    <input type="file" id="file" multiple accept=".png,.jpg,.jpeg,.bmp,.webp,.mp4,.avi,.mov,.mkv,.webm" hidden>
+    <div class="flist" id="flist"></div>
     <div style="margin-top:12px" class="row">
       <div class="field"><label>线稿引擎</label>
         <select id="neural_lineart"><option value="0">经典 XDoG</option><option value="1">神经 Anime2Sketch</option></select></div>
       <div class="field"><label>上色引擎</label>
         <select id="neural_color"><option value="0">经典 K-Means</option><option value="1">神经 ControlNet+SD</option></select></div>
       <div class="field"><label>ControlNet 变体</label>
-        <select id="cn"><option value="anime">anime 动漫</option><option value="standard">standard 通用</option></select></div>
+        <select id="cn"><option value="anime">anime 动漫线稿</option><option value="standard">standard 通用线稿</option><option value="canny">canny 边缘</option><option value="scribble">scribble 草图</option><option value="depth">depth 深度</option></select></div>
       <div class="field"><label>原图混合强度(0=关)</label>
         <input type="number" id="strength" value="0" min="0" max="1" step="0.05"></div>
       <div class="field"><label>随机种子</label>
@@ -156,6 +166,7 @@ PAGE = """<!DOCTYPE html>
       <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="input_lineart" style="width:16px;height:16px">输入已是线稿</label>
       <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="photo_color" style="width:16px;height:16px">黑白照片上色 DDColor</label>
       <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="anime_gan" style="width:16px;height:16px">动漫风格化 AnimeGANv2</label>
+      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="animate_diff" style="width:16px;height:16px">视频一致性 AnimateDiff</label>
       <div class="field"><label>色块数 k</label>
         <input type="number" id="k" value="10" min="4" max="20" step="1"></div>
       <div class="field"><label>线稿阈值 eps</label>
@@ -163,26 +174,45 @@ PAGE = """<!DOCTYPE html>
     </div>
     <div class="field" style="margin-top:12px"><label>上色提示词（留空用默认动漫风格）</label>
       <input type="text" id="prompt" placeholder="a beautiful anime illustration, ..."></div>
-    <div style="margin-top:14px"><button class="btn" id="run" disabled>运行</button></div>
+    <div style="margin-top:14px"><button class="btn" id="run" disabled>运行批量</button></div>
     <div class="bar"><i id="bar"></i></div>
     <div class="status" id="status">等待选择文件</div>
     <div class="err" id="err"></div>
   </div>
 
-  <div class="grid" id="result"></div>
+  <div id="result"></div>
 </div>
 <script>
 (function(){
   var drop=document.getElementById('drop'),file=document.getElementById('file'),
       run=document.getElementById('run'),status=document.getElementById('status'),
       bar=document.getElementById('bar'),result=document.getElementById('result'),
-      err=document.getElementById('err'),sel=null;
+      err=document.getElementById('err'),flist=document.getElementById('flist'),
+      sel=[],busy=false,queue=[];
   drop.onclick=function(){file.click();};
-  file.onchange=function(){ if(file.files[0]) pick(file.files[0]); };
+  file.onchange=function(){ addFiles(file.files); file.value=''; };
   ['dragover','dragenter'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('on');});});
   ['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove('on');});});
-  drop.addEventListener('drop',function(ev){ if(ev.dataTransfer.files[0]) pick(ev.dataTransfer.files[0]); });
-  function pick(f){ sel=f; drop.textContent='已选择: '+f.name+' ('+(f.size/1048576).toFixed(1)+' MB)'; run.disabled=false; status.textContent='就绪'; }
+  drop.addEventListener('drop',function(ev){ if(ev.dataTransfer.files.length) addFiles(ev.dataTransfer.files); });
+  function addFiles(list){
+    for(var i=0;i<list.length;i++){
+      var f=list[i],dup=false;
+      sel.forEach(function(s){ if(s.name===f.name && s.size===f.size) dup=true; });
+      if(!dup) sel.push(f);
+    }
+    renderFlist();
+  }
+  function renderFlist(){
+    flist.innerHTML='';
+    sel.forEach(function(f,idx){
+      var d=document.createElement('div'); d.className='fchip';
+      d.textContent=f.name+' ('+(f.size/1048576).toFixed(1)+' MB) ';
+      var b=document.createElement('button'); b.textContent='×';
+      b.onclick=function(){ sel.splice(idx,1); renderFlist(); if(!sel.length){run.disabled=true;} };
+      d.appendChild(b); flist.appendChild(d);
+    });
+    if(sel.length){ run.disabled=false; status.textContent=sel.length+' 个文件待处理'; }
+  }
   function v(id){return document.getElementById(id).value;}
   function qs(){
     return 'lines='+v('lines')+'&k='+v('k')+
@@ -193,29 +223,45 @@ PAGE = """<!DOCTYPE html>
       '&prompt='+encodeURIComponent(v('prompt'))+
       '&input_lineart='+document.getElementById('input_lineart').checked+
       '&photo_color='+document.getElementById('photo_color').checked+
-      '&anime_gan='+document.getElementById('anime_gan').checked;
+      '&anime_gan='+document.getElementById('anime_gan').checked+
+      '&animate_diff='+document.getElementById('animate_diff').checked;
   }
   run.onclick=function(){
-    if(!sel) return;
+    if(!sel.length) return;
     run.disabled=true; result.innerHTML=''; err.style.display='none';
-    bar.style.width='5%'; status.textContent='上传中…';
-    fetch('/api/run?'+qs(),{method:'POST',body:sel,headers:{'X-Filename':encodeURIComponent(sel.name)}})
-      .then(function(r){return r.json();}).then(function(d){
-        if(!d.ok){status.textContent='启动失败: '+d.error;run.disabled=false;return;}
-        poll();
-      }).catch(function(e){status.textContent='上传失败: '+e;run.disabled=false;});
+    queue=sel.slice(); busy=false;
+    status.textContent='准备上传 '+queue.length+' 个文件…'; bar.style.width='3%';
+    nextJob();
   };
-  function poll(){
+  function nextJob(){
+    if(!queue.length){ bar.style.width='100%'; status.textContent='全部完成'; run.disabled=false; return; }
+    var f=queue.shift();
+    status.textContent='上传 '+f.name+' …'; bar.style.width='5%';
+    fetch('/api/run?'+qs(),{method:'POST',body:f,headers:{'X-Filename':encodeURIComponent(f.name)}})
+      .then(function(r){return r.json();}).then(function(d){
+        if(!d.ok){ status.textContent='启动失败('+f.name+'): '+d.error; run.disabled=false; return; }
+        poll(f.name);
+      }).catch(function(e){ status.textContent='上传失败('+f.name+'): '+e; run.disabled=false; });
+  }
+  function poll(fname){
     fetch('/api/status').then(function(r){return r.json();}).then(function(d){
-      if(d.state==='running'){ bar.style.width='30%'; status.textContent=d.message+'（已运行 '+d.elapsed.toFixed(0)+' 秒，神经上色每张约4秒）'; setTimeout(poll,1500); }
-      else if(d.state==='done'){ bar.style.width='100%'; status.textContent='完成，用时 '+d.elapsed.toFixed(1)+' 秒';
-        var html='';
+      if(d.state==='running'){ bar.style.width='30%'; status.textContent='['+fname+'] '+d.message+'（已运行 '+d.elapsed.toFixed(0)+' 秒）'; setTimeout(function(){poll(fname);},1500); }
+      else if(d.state==='done'){
+        var html='<div class="group"><div class="gtitle">'+fname+' · 用时 '+d.elapsed.toFixed(1)+' 秒</div><div class="grid">';
         d.images.forEach(function(it){ html+='<div class="item"><img src="'+it.url+'"><div class="lbl">'+it.name+'</div></div>'; });
         d.videos.forEach(function(it){ html+='<div class="item"><video controls src="'+it.url+'"></video><div class="lbl"><a class="dl" href="'+it.url+'" download>'+it.name+'</a></div></div>'; });
-        result.innerHTML=html; run.disabled=false;
+        html+='</div></div>';
+        result.insertAdjacentHTML('beforeend',html);
+        bar.style.width='40%';
+        status.textContent=(queue.length? '剩余 '+queue.length+' 个文件，继续…' : '完成');
+        setTimeout(nextJob, 300);
       }
-      else if(d.state==='error'){ bar.style.width='0'; status.textContent='处理失败'; err.style.display='block'; err.textContent=d.error; run.disabled=false; }
-    }).catch(function(){setTimeout(poll,1500);});
+      else if(d.state==='error'){ bar.style.width='0'; status.textContent='处理失败('+fname+')';
+        err.style.display='block'; err.textContent='['+fname+']\n'+d.error;
+        if(queue.length){ status.textContent='跳过 '+fname+'，继续剩余 '+queue.length+' 个…'; setTimeout(nextJob, 300); }
+        else run.disabled=false;
+      }
+    }).catch(function(){setTimeout(function(){poll(fname);},1500);});
   }
 })();
 </script>
@@ -265,7 +311,7 @@ class Handler(BaseHTTPRequestHandler):
             with open(src, "wb") as f:
                 f.write(data)
             out_dir = os.path.join(
-                WEB_OUT, time.strftime("%Y%m%d_%H%M%S"))
+                WEB_OUT, time.strftime("%Y%m%d_%H%M%S_") + os.path.splitext(os.path.basename(fname))[0])
             os.makedirs(out_dir, exist_ok=True)
             params = {k: (v[0] if v else "") for k, v in qs.items()}
             params["lines"] = float(params.get("lines", -0.10) or -0.10)
@@ -277,7 +323,8 @@ class Handler(BaseHTTPRequestHandler):
                               if params.get("seed") else None)
             params["strength"] = (float(params["strength"])
                                   if params.get("strength") else None)
-            for flag in ("input_lineart", "photo_color", "anime_gan"):
+            for flag in ("input_lineart", "photo_color", "anime_gan",
+                         "animate_diff"):
                 params[flag] = params.get(flag) == "True"
             if _state["state"] == "running":
                 self._send(429, json.dumps(

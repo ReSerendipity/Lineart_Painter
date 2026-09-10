@@ -29,6 +29,12 @@ HF_HOME = os.path.join(MODELS_DIR, "hfhome")
 MODEL_SD = "stable-diffusion-v1-5/stable-diffusion-v1-5"
 MODEL_CN_ANIME = "lllyasviel/control_v11p_sd15s2_lineart_anime"
 CN_STANDARD_DIR = os.path.join(MODELS_DIR, "cn_standard")
+CN_VARIANT_DIRS = {  # 非 anime 变体统一放 models/cn_<v>/（config.json + fp16.safetensors）
+    "canny": os.path.join(MODELS_DIR, "cn_canny"),
+    "scribble": os.path.join(MODELS_DIR, "cn_scribble"),
+    "depth": os.path.join(MODELS_DIR, "cn_depth"),
+}
+ANIMATEDIFF_DIR = os.path.join(MODELS_DIR, "animatediff")
 HF_ENDPOINT = "https://hf-mirror.com"
 
 
@@ -181,12 +187,19 @@ class NeuralColorizer:
             if not os.path.exists(os.path.join(CN_STANDARD_DIR,
                                                "diffusion_pytorch_model.fp16.safetensors")):
                 raise FileNotFoundError(
-                    "标准版 ControlNet 权重未找到（%s）。请先运行下载：\n"
-                    "  curl -L -o %s\\diffusion_pytorch_model.fp16.safetensors "
-                    "https://hf-mirror.com/lllyasviel/control_v11p_sd15_lineart/"
-                    "resolve/main/diffusion_pytorch_model.fp16.safetensors"
-                    % (CN_STANDARD_DIR, CN_STANDARD_DIR))
+                    "标准版 ControlNet 权重未找到（%s）。请先运行：\n"
+                    "  python setup_models.py --only cn_standard"
+                    % CN_STANDARD_DIR)
             return CN_STANDARD_DIR
+        if self.cn_variant in CN_VARIANT_DIRS:
+            d = CN_VARIANT_DIRS[self.cn_variant]
+            if not os.path.exists(os.path.join(
+                    d, "diffusion_pytorch_model.fp16.safetensors")):
+                raise FileNotFoundError(
+                    "ControlNet(%s) 权重未找到（%s）。请先运行：\n"
+                    "  python setup_models.py --only cn_%s"
+                    % (self.cn_variant, d, self.cn_variant))
+            return d
         return self._local_snapshot(MODEL_CN_ANIME)
 
     def load(self):
@@ -296,6 +309,159 @@ class NeuralColorizer:
 DEFAULT_PROMPT = ("a beautiful anime illustration, clean line art, "
                   "vibrant colors, soft cel shading, detailed, "
                   "masterpiece, best quality")
+
+
+# =====================================================================
+# 2.5 深度估计（ControlNet depth 变体的条件图）
+# =====================================================================
+_DEPTH_PIPE = None
+
+
+def depth_map(rgb, size=None):
+    """RGB uint8 -> 深度灰度图（近=白，远=黑，0..255 uint8）。
+
+    使用 transformers depth-estimation（Intel/dpt-hybrid-midas，约 86MB），
+    模型缓存到 models/hfhome。首次调用自动从 hf-mirror 下载。
+    """
+    import torch
+    from PIL import Image
+
+    global _DEPTH_PIPE
+    if _DEPTH_PIPE is None:
+        os.environ["HF_ENDPOINT"] = HF_ENDPOINT
+        os.environ.setdefault("HF_HOME", HF_HOME)
+        os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+        from transformers import pipeline
+        _DEPTH_PIPE = pipeline("depth-estimation",
+                               model="Intel/dpt-hybrid-midas")
+    h, w = rgb.shape[:2]
+    out = _DEPTH_PIPE(Image.fromarray(rgb))["depth"]
+    d = np.asarray(out, dtype=np.float32)
+    if d.shape[:2] != (h, w):
+        d = cv2.resize(d, (w, h), interpolation=cv2.INTER_LINEAR)
+    d = (d - d.min()) / (d.max() - d.min() + 1e-6)
+    return (d * 255.0).astype(np.uint8)
+
+
+# =====================================================================
+# 2.6 AnimateDiff 帧间一致性视频上色
+# =====================================================================
+class AnimateDiffColorizer:
+    """视频帧间一致性神经上色：AnimateDiff 运动适配器 + ControlNet(lineart)。
+
+    输入：线稿帧序列（白底黑线 uint8，任意帧数）；
+    每 16 帧切成一段生成（AnimateDiff 固定段长），输出同尺寸 RGB 帧序列。
+    相比逐帧扩散，帧间运动由 motion adapter 约束，闪烁显著减少。
+
+    权重：models/animatediff/（guoyww/animatediff-motion-adapter-v1-5-2）
+    """
+
+    def __init__(self, device=None, cn_variant="anime", sd_model=MODEL_SD,
+                 hf_home=HF_HOME):
+        import torch
+        self.sd_model = sd_model
+        self.cn_variant = cn_variant
+        self.hf_home = hf_home
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self._pipe = None
+
+    def _local_snapshot(self, model_id):
+        import glob
+        org, name = model_id.split("/", 1)
+        base = os.path.join(self.hf_home, "hub",
+                            "models--%s--%s" % (org, name), "snapshots")
+        snaps = sorted(glob.glob(os.path.join(base, "*")))
+        if not snaps:
+            raise FileNotFoundError(
+                "未找到 %s 的本地权重缓存（%s）。请运行："
+                "python setup_models.py --only sd15 cn_anime" % (model_id, base))
+        return snaps[-1]
+
+    def _cn_dir(self):
+        nc = NeuralColorizer(cn_variant=self.cn_variant, hf_home=self.hf_home)
+        return nc._cn_dir()
+
+    def load(self):
+        if self._pipe is not None:
+            return self._pipe
+        import torch
+        from diffusers import (AnimateDiffControlNetPipeline, ControlNetModel,
+                               DDIMScheduler, MotionAdapter)
+        os.environ["HF_ENDPOINT"] = HF_ENDPOINT
+        if not os.path.exists(os.path.join(
+                ANIMATEDIFF_DIR, "diffusion_pytorch_model.fp16.safetensors")):
+            raise FileNotFoundError(
+                "AnimateDiff 运动适配器未找到（%s）。请运行：\n"
+                "  python setup_models.py --only animatediff" % ANIMATEDIFF_DIR)
+        sd_dir = self._local_snapshot(self.sd_model)
+        cn_dir = self._cn_dir()
+        print("[neural] 加载 AnimateDiff + ControlNet(%s) + SD1.5 (fp16) ..."
+              % self.cn_variant)
+        motion = MotionAdapter.from_pretrained(
+            ANIMATEDIFF_DIR, variant="fp16", torch_dtype=torch.float16)
+        controlnet = ControlNetModel.from_pretrained(
+            cn_dir, torch_dtype=torch.float16, variant="fp16")
+        pipe = AnimateDiffControlNetPipeline.from_pretrained(
+            sd_dir, motion_adapter=motion, controlnet=controlnet,
+            torch_dtype=torch.float16, variant="fp16",
+            safety_checker=None, feature_extractor=None,
+            requires_safety_checker=False)
+        pipe.scheduler = DDIMScheduler.from_pretrained(
+            sd_dir, subfolder="scheduler", beta_start=0.00085, beta_end=0.012,
+            beta_schedule="linear", clip_sample=False)
+        if self.device == "cuda":
+            pipe.to("cuda")
+            try:
+                pipe.enable_attention_slicing()
+                pipe.enable_vae_slicing()
+            except AttributeError:
+                pass  # 不同 diffusers 版本能力略有差异
+        else:
+            pipe.to("cpu")
+        self._pipe = pipe
+        return pipe
+
+    def colorize_frames(self, frames, prompt,
+                        negative_prompt=("lowres, bad anatomy, bad hands, "
+                                         "text, watermark, signature, blurry, "
+                                         "jpeg artifacts, ugly"),
+                        steps=20, guidance=7.5, scale=0.85, seed=None,
+                        size=512):
+        """线稿帧序列 -> 一致性上色帧序列（RGB uint8，与输入同尺寸）。"""
+        from PIL import Image
+        import torch
+
+        pipe = self.load()
+        h, w = frames[0].shape[:2]
+        seg_len = 16
+        outs = []
+        gen = None
+        if seed is not None:
+            gen = torch.Generator(device=self.device).manual_seed(seed)
+        for i in range(0, len(frames), seg_len):
+            seg = frames[i:i + seg_len]
+            while len(seg) < seg_len:  # 末段补帧
+                seg.append(frames[min(i + seg_len - 1, len(frames) - 1)])
+            ctrl = []
+            for f in seg:
+                g = cv2.resize(f, (size, size), interpolation=cv2.INTER_AREA)
+                ctrl.append(Image.fromarray(np.stack([g] * 3, axis=-1)))
+            result = pipe(prompt=prompt, negative_prompt=negative_prompt,
+                          num_frames=seg_len, height=size, width=size,
+                          num_inference_steps=steps,
+                          guidance_scale=guidance,
+                          controlnet_conditioning_scale=scale,
+                          conditioning_frames=ctrl, generator=gen)
+            for j, im in enumerate(result.frames[0]):
+                if i + j < len(frames):
+                    rgb = np.asarray(im, dtype=np.uint8)
+                    if rgb.shape[:2] != (h, w):
+                        rgb = cv2.resize(rgb, (w, h),
+                                         interpolation=cv2.INTER_AREA)
+                    outs.append(rgb)
+            print("  AnimateDiff 段 %d/%d 完成" %
+                  (i // seg_len + 1, (len(frames) + seg_len - 1) // seg_len))
+        return outs
 
 
 # =====================================================================
