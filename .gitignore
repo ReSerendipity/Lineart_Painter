@@ -1,0 +1,17 @@
+# Local OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Downloaded model weights and caches
+models/
+weights/
+
+# Generated images, videos, exports, and uploads
+out_*/
+uploads/
+webout/
+*.mp4
+*.avi
+*.mov
+
