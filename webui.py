@@ -113,6 +113,7 @@ def _run_job(src, out_dir, params):
 PAGE = """<!DOCTYPE html>
 <html lang="zh">
 <head><meta charset="utf-8"><title>lineart_painter · AI 临摹重绘工作台</title>
+<link rel="icon" href="/favicon.ico">
 <style>
   body{margin:0;background:#0E1116;color:#E8EAED;font-family:'Segoe UI','PingFang SC',Arial,sans-serif}
   .wrap{max-width:1000px;margin:0 auto;padding:20px 16px}
@@ -141,10 +142,58 @@ PAGE = """<!DOCTYPE html>
   .item .lbl{font-size:12px;color:#7A828E;margin-top:8px}
   .err{background:#2A1518;border:1px solid #5C2A30;border-radius:8px;padding:10px;font-size:12px;color:#F3A3A8;white-space:pre-wrap;display:none}
   a.dl{color:#A3D5E8;font-size:12px}
+  .hint{font-size:11px;color:#5A6472;font-weight:400;line-height:1.4;margin-top:2px}
+  .guide{background:#151A22;border:1px solid #232A34;border-radius:12px;margin-bottom:14px;overflow:hidden}
+  .guide summary{cursor:pointer;padding:12px 16px;font-size:14px;font-weight:600;color:#A3D5E8;list-style:none}
+  .guide summary::before{content:"▸ ";color:#7A828E}
+  .guide[open] summary::before{content:"▾ "}
+  .guide .gbody{padding:2px 16px 14px;font-size:12.5px;color:#B9C0CC;line-height:1.7}
+  .guide h4{color:#A3D5E8;font-size:12.5px;margin:10px 0 4px}
+  .guide table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}
+  .guide th,.guide td{border:1px solid #232A34;padding:5px 8px;text-align:left;color:#B9C0CC}
+  .guide th{color:#E8EAED;background:#0E1116}
+  .guide code{background:#0E1116;border:1px solid #232A34;border-radius:4px;padding:1px 5px;color:#94D8C3;font-size:11.5px}
 </style></head>
 <body><div class="wrap">
   <h1>lineart_painter · AI 临摹重绘工作台</h1>
   <div class="sub">图片/视频 → 线稿 → 填色 → 还原 · 本机运行（神经引擎需要 GPU）· 支持多选批量</div>
+
+  <details class="guide"><summary>使用指南：怎么用 / 每个参数什么意思 / 模型怎么下载</summary><div class="gbody">
+    <h4>3 步流程</h4>
+    ① 点击上方区域选择或拖入图片/视频（可多选）→ ② 按需要选参数（默认参数可直接运行）→ ③ 点「运行批量」，结果自动显示在下方（每步一张图，视频另有预览）。
+    <h4>引擎怎么选（也是“选模型”的关键）</h4>
+    <table>
+      <tr><th>选项</th><th>含义</th><th>需要模型？</th><th>速度</th></tr>
+      <tr><td>线稿 = 经典 XDoG</td><td>传统算法提取线条</td><td>否</td><td>毫秒级</td></tr>
+      <tr><td>线稿 = 神经 Anime2Sketch</td><td>AI 提取手绘感线条</td><td>是（约 60MB）</td><td>约 3 秒</td></tr>
+      <tr><td>上色 = 经典 K-Means</td><td>聚类算法分块填色</td><td>否</td><td>亚秒</td></tr>
+      <tr><td>上色 = 神经 ControlNet+SD</td><td>AI 生成式上色，效果最强</td><td>是（约 4GB）</td><td>10 秒以上</td></tr>
+    </table>
+    <h4>ControlNet 变体（神经上色时生效）</h4>
+    <table>
+      <tr><th>变体</th><th>作用</th><th>权重</th></tr>
+      <tr><td>anime 动漫线稿（默认）</td><td>针对动漫线稿优化</td><td>已下载</td></tr>
+      <tr><td>standard 通用线稿</td><td>普通线稿通用引导</td><td>约 690MB</td></tr>
+      <tr><td>canny 边缘</td><td>硬边缘引导，线条更锐</td><td>约 690MB</td></tr>
+      <tr><td>scribble 草图</td><td>自由草图风格</td><td>约 690MB</td></tr>
+      <tr><td>depth 深度</td><td>按景深结构上色</td><td>约 690MB + MiDaS</td></tr>
+    </table>
+    <h4>模型下载（在项目目录命令行执行）</h4>
+    <code>python setup_models.py --list</code> 查看全部<br>
+    <code>python setup_models.py</code> 全部下载（约 8.6GB）<br>
+    <code>python setup_models.py --only anime2sketch ddcolor</code> 只下指定项<br>
+    未下载的模型选中后会报错提示，下载后即可使用。
+    <h4>常用组合速查</h4>
+    <table>
+      <tr><th>想要的效果</th><th>配置</th></tr>
+      <tr><td>什么都不选，直接跑</td><td>默认参数（经典，秒出）</td></tr>
+      <tr><td>动漫插画精细还原</td><td>线稿=神经 + 上色=神经 + 变体=anime</td></tr>
+      <tr><td>手绘线稿上色</td><td>勾「输入已是线稿」+ 上色=神经</td></tr>
+      <tr><td>黑白老照片上色</td><td>勾「黑白照片上色 DDColor」</td></tr>
+      <tr><td>照片变动漫</td><td>勾「动漫风格化 AnimeGANv2」</td></tr>
+      <tr><td>视频上色不闪烁</td><td>勾「视频一致性 AnimateDiff」+ 上色=神经</td></tr>
+    </table>
+  </div></details>
 
   <div class="card">
     <div class="drop" id="drop">点击选择 或 拖入图片/视频文件（可多选）</div>
@@ -152,28 +201,36 @@ PAGE = """<!DOCTYPE html>
     <div class="flist" id="flist"></div>
     <div style="margin-top:12px" class="row">
       <div class="field"><label>线稿引擎</label>
-        <select id="neural_lineart"><option value="0">经典 XDoG</option><option value="1">神经 Anime2Sketch</option></select></div>
+        <select id="neural_lineart"><option value="0">经典 XDoG</option><option value="1">神经 Anime2Sketch</option></select>
+        <div class="hint">经典=秒出无需模型；神经=AI 手绘感线条，需下载</div></div>
       <div class="field"><label>上色引擎</label>
-        <select id="neural_color"><option value="0">经典 K-Means</option><option value="1">神经 ControlNet+SD</option></select></div>
+        <select id="neural_color"><option value="0">经典 K-Means</option><option value="1">神经 ControlNet+SD</option></select>
+        <div class="hint">经典=快速色块；神经=AI 生成式上色，需下载约 4GB</div></div>
       <div class="field"><label>ControlNet 变体</label>
-        <select id="cn"><option value="anime">anime 动漫线稿</option><option value="standard">standard 通用线稿</option><option value="canny">canny 边缘</option><option value="scribble">scribble 草图</option><option value="depth">depth 深度</option></select></div>
+        <select id="cn"><option value="anime">anime 动漫线稿</option><option value="standard">standard 通用线稿</option><option value="canny">canny 边缘</option><option value="scribble">scribble 草图</option><option value="depth">depth 深度</option></select>
+        <div class="hint">神经上色的引导条件，未下载的变体需先下载</div></div>
       <div class="field"><label>原图混合强度(0=关)</label>
-        <input type="number" id="strength" value="0" min="0" max="1" step="0.05"></div>
+        <input type="number" id="strength" value="0" min="0" max="1" step="0.05">
+        <div class="hint">0=完全按线稿生成；0.35~0.6 混入原图风格</div></div>
       <div class="field"><label>随机种子</label>
-        <input type="number" id="seed" value="42" step="1"></div>
+        <input type="number" id="seed" value="42" step="1">
+        <div class="hint">固定种子可复现相同结果</div></div>
     </div>
     <div style="margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="input_lineart" style="width:16px;height:16px">输入已是线稿</label>
-      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="photo_color" style="width:16px;height:16px">黑白照片上色 DDColor</label>
-      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="anime_gan" style="width:16px;height:16px">动漫风格化 AnimeGANv2</label>
-      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="animate_diff" style="width:16px;height:16px">视频一致性 AnimateDiff</label>
+      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="input_lineart" style="width:16px;height:16px">输入已是线稿<span class="hint" style="display:inline">跳过线稿提取</span></label>
+      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="photo_color" style="width:16px;height:16px">黑白照片上色 DDColor<span class="hint" style="display:inline">老照片自动上色</span></label>
+      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="anime_gan" style="width:16px;height:16px">动漫风格化 AnimeGANv2<span class="hint" style="display:inline">照片变动漫风</span></label>
+      <label style="font-size:13px;color:#E8EAED;display:flex;gap:6px;align-items:center"><input type="checkbox" id="animate_diff" style="width:16px;height:16px">视频一致性 AnimateDiff<span class="hint" style="display:inline">防闪烁，需 1.7GB</span></label>
       <div class="field"><label>色块数 k</label>
-        <input type="number" id="k" value="10" min="4" max="20" step="1"></div>
+        <input type="number" id="k" value="10" min="4" max="20" step="1">
+        <div class="hint">填色用色块数(4-20)，越大越细腻</div></div>
       <div class="field"><label>线稿阈值 eps</label>
-        <input type="number" id="lines" value="-0.10" step="0.01"></div>
+        <input type="number" id="lines" value="-0.10" step="0.01">
+        <div class="hint">越接近 0 线条越多；越负线条越少</div></div>
     </div>
     <div class="field" style="margin-top:12px"><label>上色提示词（留空用默认动漫风格）</label>
-      <input type="text" id="prompt" placeholder="a beautiful anime illustration, ..."></div>
+      <input type="text" id="prompt" placeholder="a beautiful anime illustration, ...">
+      <div class="hint">英文效果更好，如 watercolor style / cyberpunk</div></div>
     <div style="margin-top:14px"><button class="btn" id="run" disabled>运行批量</button></div>
     <div class="bar"><i id="bar"></i></div>
     <div class="status" id="status">等待选择文件</div>
@@ -284,6 +341,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/" or self.path == "/index.html":
             self._send(200, PAGE, "text/html; charset=utf-8")
+        elif self.path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+        elif self.path == "/favicon.ico":
+            p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "assets", "icons", "lineart-icon.ico")
+            if os.path.exists(p):
+                with open(p, "rb") as f:
+                    self._send(200, f.read(), "image/x-icon")
+            else:
+                self._send(404, json.dumps({"error": "not found"}))
         elif self.path.startswith("/api/status"):
             with _lock:
                 st = dict(_state)

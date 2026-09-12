@@ -17,3 +17,5 @@ demo_ext/
 *.mov
 
 smoke_out/
+__pycache__/
+*.pyc
