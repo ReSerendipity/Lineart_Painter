@@ -1,0 +1,3 @@
+# 仅模型下载脚本 setup_models.py 所需依赖
+# 主程序（webui.py）的完整运行依赖请见 README
+huggingface_hub
