@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows (PyInstaller)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy opencv-python-headless pyinstaller
+
+      - name: Build executable (onedir)
+        run: |
+          pyinstaller --onedir --windowed --name lineart_painter `
+            --add-data "configs;configs" `
+            --add-data "assets;assets" `
+            --add-data "pipelines;pipelines" `
+            --hidden-import numpy --hidden-import cv2 `
+            webui.py
+
+      - name: Package dist folder
+        run: Compress-Archive -Path dist -DestinationPath lineart_painter-windows.zip
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          releaseName: "Lineart Painter ${{ github.ref_name }}"
+          releaseBody: |
+            ## Lineart Painter ${{ github.ref_name }}
+            - Windows 便携包：`lineart_painter-windows.zip`（解压后运行 lineart_painter.exe，浏览器打开 http://127.0.0.1:8765）
+            - 依赖仅 numpy + opencv，无需训练模型
+          files: lineart_painter-windows.zip
