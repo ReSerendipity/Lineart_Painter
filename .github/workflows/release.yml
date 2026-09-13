@@ -26,13 +26,26 @@ jobs:
           pip install numpy opencv-python-headless pyinstaller
 
       - name: Build executable (onedir)
+        shell: pwsh
         run: |
-          pyinstaller --onedir --windowed --name lineart_painter `
-            --add-data "configs;configs" `
-            --add-data "assets;assets" `
-            --add-data "pipelines;pipelines" `
-            --hidden-import numpy --hidden-import cv2 `
-            webui.py
+          # Ensure data dirs exist so PyInstaller --add-data never fails on
+          # directories that are empty / untracked in the repo (e.g. configs/).
+          foreach ($d in @("configs", "assets", "pipelines")) {
+            if (-not (Test-Path $d)) {
+              New-Item -ItemType Directory -Force -Path $d | Out-Null
+            }
+          }
+          $pyArgs = @(
+            "--onedir", "--windowed",
+            "--name", "lineart_painter",
+            "--add-data", "configs;configs",
+            "--add-data", "assets;assets",
+            "--add-data", "pipelines;pipelines",
+            "--hidden-import", "numpy",
+            "--hidden-import", "cv2",
+            "webui.py"
+          )
+          & pyinstaller @pyArgs
 
       - name: Package dist folder
         run: Compress-Archive -Path dist -DestinationPath lineart_painter-windows.zip
@@ -45,5 +58,5 @@ jobs:
           releaseBody: |
             ## Lineart Painter ${{ github.ref_name }}
             - Windows 便携包：`lineart_painter-windows.zip`（解压后运行 lineart_painter.exe，浏览器打开 http://127.0.0.1:8765）
-            - 依赖仅 numpy + opencv，无需训练模型
+            - 依赖仅 numpy + opencv，模型权重运行时通过 setup_models.py 下载
           files: lineart_painter-windows.zip
