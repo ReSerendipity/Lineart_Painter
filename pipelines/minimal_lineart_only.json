@@ -1,0 +1,9 @@
+{
+  "name": "minimal_lineart_only",
+  "description": "最简管线：只提取线稿并保存（SVG + PNG）",
+  "nodes": [
+    {"id": "load", "type": "LoadImage"},
+    {"id": "lineart", "type": "ExtractLineart", "after": ["load"]},
+    {"id": "save", "type": "SaveOutputs", "after": ["lineart"]}
+  ]
+}

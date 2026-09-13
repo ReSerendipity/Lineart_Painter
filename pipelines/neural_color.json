@@ -1,0 +1,11 @@
+{
+  "name": "neural_color",
+  "description": "神经上色管线：线稿提取 + ControlNet+SD 上色（跳过经典分步还原）",
+  "nodes": [
+    {"id": "load", "type": "LoadImage"},
+    {"id": "lineart", "type": "ExtractLineart", "after": ["load"]},
+    {"id": "flat", "type": "FlatColors", "params": {"k": 10}, "after": ["lineart"]},
+    {"id": "neural", "type": "NeuralColor", "after": ["flat"]},
+    {"id": "save", "type": "SaveOutputs", "after": ["neural"]}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "default_classic",
+  "description": "经典分步还原管线（与 process_image 等价）：线稿→固有色→明暗→反射光→色线→高光",
+  "nodes": [
+    {"id": "load", "type": "LoadImage"},
+    {"id": "lineart", "type": "ExtractLineart", "after": ["load"]},
+    {"id": "flat", "type": "FlatColors", "params": {"k": 10}, "after": ["lineart"]},
+    {"id": "shading", "type": "Shading", "after": ["flat"]},
+    {"id": "reflected", "type": "ReflectedLight", "after": ["shading"]},
+    {"id": "colorlines", "type": "ColorLines", "after": ["reflected"]},
+    {"id": "highlights", "type": "Highlights", "after": ["colorlines"]},
+    {"id": "save", "type": "SaveOutputs", "after": ["highlights"]}
+  ]
+}

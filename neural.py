@@ -23,6 +23,8 @@ import numpy as np
 
 import cv2
 
+from vram_manager import vram
+
 WEIGHTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weights")
 MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
 HF_HOME = os.path.join(MODELS_DIR, "hfhome")
@@ -144,13 +146,20 @@ def a2s_sketch_binary(rgb, variant="improved", threshold=200, device=None):
 class NeuralColorizer:
     """线稿 -> 神经上色（懒加载 diffusers 管线，重复调用只加载一次）。
 
-    cn_variant: 'anime'（动漫线稿专用，默认）| 'standard'（通用线稿）
+    cn_variant: 字符串或逗号分隔字符串/列表，支持单 ControlNet 或多 ControlNet 堆叠。
+      单值: 'anime' | 'standard' | 'canny' | 'scribble' | 'depth' | 'manga_line'
+      多值: ['anime', 'depth'] 或 'anime,depth'（各 ControlNet 加权融合）
     """
 
     def __init__(self, device=None, sd_model=MODEL_SD, cn_variant="anime",
                  hf_home=HF_HOME):
         self.sd_model = sd_model
-        self.cn_variant = cn_variant
+        # 统一为列表
+        if isinstance(cn_variant, str):
+            self.cn_variants = [v.strip() for v in cn_variant.split(",") if v.strip()]
+        else:
+            self.cn_variants = list(cn_variant)
+        self.cn_variant = self.cn_variants[0] if self.cn_variants else "anime"
         self.hf_home = hf_home
         self.device = device
         self._pipe = None
@@ -182,8 +191,9 @@ class NeuralColorizer:
         return snapshot_download(model_id, allow_patterns=patterns,
                                  local_dir_use_symlinks=False)
 
-    def _cn_dir(self):
-        if self.cn_variant == "standard":
+    def _cn_dir_for(self, variant):
+        """返回单个 ControlNet 变体的权重目录。"""
+        if variant == "standard":
             if not os.path.exists(os.path.join(CN_STANDARD_DIR,
                                                "diffusion_pytorch_model.fp16.safetensors")):
                 raise FileNotFoundError(
@@ -191,16 +201,27 @@ class NeuralColorizer:
                     "  python setup_models.py --only cn_standard"
                     % CN_STANDARD_DIR)
             return CN_STANDARD_DIR
-        if self.cn_variant in CN_VARIANT_DIRS:
-            d = CN_VARIANT_DIRS[self.cn_variant]
+        if variant in CN_VARIANT_DIRS:
+            d = CN_VARIANT_DIRS[variant]
             if not os.path.exists(os.path.join(
                     d, "diffusion_pytorch_model.fp16.safetensors")):
                 raise FileNotFoundError(
                     "ControlNet(%s) 权重未找到（%s）。请先运行：\n"
                     "  python setup_models.py --only cn_%s"
-                    % (self.cn_variant, d, self.cn_variant))
+                    % (variant, d, variant))
             return d
+        # anime / manga_line 共用 anime ControlNet 模型
         return self._local_snapshot(MODEL_CN_ANIME)
+
+    def _cn_dirs(self):
+        """返回所有 ControlNet 变体的权重目录列表（去重）。"""
+        seen, dirs = set(), []
+        for v in self.cn_variants:
+            d = self._cn_dir_for(v)
+            if d not in seen:
+                seen.add(d)
+                dirs.append(d)
+        return dirs
 
     def load(self):
         if self._pipe is not None:
@@ -216,23 +237,29 @@ class NeuralColorizer:
         if self.device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         try:
-            cn_dir = self._cn_dir()
+            cn_dirs = self._cn_dirs()
             sd_dir = self._local_snapshot(self.sd_model)
         except FileNotFoundError:
             print("[neural] 首次使用：下载权重（约 3.5GB，hf-mirror）...")
             self._setup_env()
             if self.cn_variant == "standard":
                 raise
-            cn_dir = self._download(
+            cn_dirs = [self._download(
                 MODEL_CN_ANIME,
-                ["config.json", "*.fp16.safetensors", "README.md"])
+                ["config.json", "*.fp16.safetensors", "README.md"])]
             sd_dir = self._download(
                 self.sd_model,
                 ["**/*.fp16.safetensors", "**/*.json", "**/*.txt",
                  "model_index.json", "feature_extractor/*"])
-        print("[neural] 加载 ControlNet(%s) + SD1.5 (fp16) ..." % self.cn_variant)
-        controlnet = ControlNetModel.from_pretrained(
-            cn_dir, torch_dtype=torch.float16, variant="fp16")
+        cn_label = "+".join(self.cn_variants)
+        print("[neural] 加载 ControlNet(%s) + SD1.5 (fp16) ..." % cn_label)
+        # 多 ControlNet：加载为列表；单 ControlNet：保持单个对象（兼容旧 API）
+        if len(cn_dirs) > 1:
+            controlnet = [ControlNetModel.from_pretrained(
+                d, torch_dtype=torch.float16, variant="fp16") for d in cn_dirs]
+        else:
+            controlnet = ControlNetModel.from_pretrained(
+                cn_dirs[0], torch_dtype=torch.float16, variant="fp16")
         vae = AutoencoderKL.from_pretrained(
             sd_dir, subfolder="vae", torch_dtype=torch.float16, variant="fp16")
         unet = UNet2DConditionModel.from_pretrained(
@@ -250,53 +277,82 @@ class NeuralColorizer:
         self._pipe = StableDiffusionControlNetPipeline(**common)
         self._pipe_i2i = StableDiffusionControlNetImg2ImgPipeline(**common)
         if self.device == "cuda":
+            # 加载前确保有足够显存（约 4GB for SD1.5+ControlNet）
+            vram.ensure_vram(4096)
             self._pipe.to("cuda")
             self._pipe_i2i.to("cuda")
-            self._pipe.enable_attention_slicing()
-            self._pipe_i2i.enable_attention_slicing()
+            if vram.low_vram:
+                vram.apply_low_vram(self._pipe)
+                vram.apply_low_vram(self._pipe_i2i)
+            else:
+                self._pipe.enable_attention_slicing()
+                self._pipe_i2i.enable_attention_slicing()
         else:
             self._pipe.to("cpu")
             self._pipe_i2i.to("cpu")
+        vram.register("neural_colorizer", self._pipe)
         return self._pipe
 
-    def colorize(self, sketch_gray, prompt,
+    def colorize(self, cond, prompt,
                  negative_prompt=("lowres, bad anatomy, bad hands, "
                                   "text, watermark, signature, blurry, "
                                   "jpeg artifacts, ugly"),
-                 steps=25, guidance=7.5, scale=0.85, seed=None, size=512,
+                 steps=25, guidance=7.5, scale=0.85, seed=None, size=768,
                  strength=None, init_rgb=None):
-        """线稿（0..255，白底黑线）-> 彩色还原图（RGB uint8，原图尺寸）。
+        """线稿条件图 -> 彩色还原图（RGB uint8，原图尺寸）。
 
-        strength 在 (0,1) 且传入 init_rgb 时启用 img2img 混合模式：
-        以原图为底、线稿为结构约束重绘，越接近 0 越贴近原图。
+        cond: 单张灰度图 (HxW uint8) 或灰度图列表（多 ControlNet 时一一对应）。
+        scale: 单 float 或 float 列表（多 ControlNet 时各权重）。
+        strength 在 (0,1) 且传入 init_rgb 时启用 img2img 混合模式。
         """
         from PIL import Image
         import torch
 
         pipe = self.load()
-        h, w = sketch_gray.shape[:2]
-        ctrl = cv2.resize(sketch_gray, (size, size),
-                          interpolation=cv2.INTER_LANCZOS4)
-        ctrl_pil = Image.fromarray(np.stack([ctrl] * 3, axis=-1))
+        # 低显存模式自动降低生成分辨率
+        if vram.low_vram and size > 512:
+            size = 512
+        # 统一 cond 为列表
+        if isinstance(cond, (list, tuple)):
+            cond_list = list(cond)
+        else:
+            cond_list = [cond]
+        h, w = cond_list[0].shape[:2]
+        ctrl_pils = []
+        for c in cond_list:
+            r = cv2.resize(c, (size, size), interpolation=cv2.INTER_LANCZOS4)
+            ctrl_pils.append(Image.fromarray(np.stack([r] * 3, axis=-1)))
+        # 统一 scale 为列表
+        n_cn = len(self.cn_variants)
+        if isinstance(scale, (list, tuple)):
+            scales = [float(s) for s in scale]
+        else:
+            scales = [float(scale)] * n_cn
+        # 若条件图数量与 ControlNet 数量不匹配，用最后一张补齐
+        while len(ctrl_pils) < n_cn:
+            ctrl_pils.append(ctrl_pils[-1])
         gen = None
         if seed is not None:
             gen = torch.Generator(device=self.device).manual_seed(seed)
+        # 单 ControlNet 时传标量（兼容旧版 diffusers）
+        cn_image = ctrl_pils[0] if n_cn == 1 else ctrl_pils
+        cn_scale = scales[0] if n_cn == 1 else scales
         if strength is not None and init_rgb is not None:
             init = cv2.resize(init_rgb, (size, size),
                               interpolation=cv2.INTER_LANCZOS4)
             init_pil = Image.fromarray(init)
             out = self._pipe_i2i(
                 prompt=prompt, negative_prompt=negative_prompt,
-                image=init_pil, control_image=ctrl_pil,
+                image=init_pil, control_image=cn_image,
                 strength=float(strength), num_inference_steps=steps,
                 guidance_scale=guidance,
-                controlnet_conditioning_scale=scale,
+                controlnet_conditioning_scale=cn_scale,
                 generator=gen).images[0]
         else:
             out = pipe(prompt=prompt, negative_prompt=negative_prompt,
-                       image=ctrl_pil, num_inference_steps=steps,
+                       image=cn_image, num_inference_steps=steps,
                        guidance_scale=guidance,
-                       controlnet_conditioning_scale=scale,
+                       controlnet_conditioning_scale=cn_scale,
                        generator=gen).images[0]
         out_np = np.array(out).astype(np.uint8)
         if (out_np.shape[1], out_np.shape[0]) != (w, h):
@@ -379,7 +435,7 @@ class AnimateDiffColorizer:
 
     def _cn_dir(self):
         nc = NeuralColorizer(cn_variant=self.cn_variant, hf_home=self.hf_home)
-        return nc._cn_dir()
+        return nc._cn_dir_for(self.cn_variant)
 
     def load(self):
         if self._pipe is not None:
@@ -410,15 +466,20 @@ class AnimateDiffColorizer:
             sd_dir, subfolder="scheduler", beta_start=0.00085, beta_end=0.012,
             beta_schedule="linear", clip_sample=False)
         if self.device == "cuda":
+            vram.ensure_vram(6144)  # AnimateDiff 需要更多显存
             pipe.to("cuda")
-            try:
-                pipe.enable_attention_slicing()
-                pipe.enable_vae_slicing()
-            except AttributeError:
-                pass  # 不同 diffusers 版本能力略有差异
+            if vram.low_vram:
+                vram.apply_low_vram(pipe)
+            else:
+                try:
+                    pipe.enable_attention_slicing()
+                    pipe.enable_vae_slicing()
+                except AttributeError:
+                    pass
         else:
             pipe.to("cpu")
         self._pipe = pipe
+        vram.register("animatediff", pipe)
         return pipe
 
     def colorize_frames(self, frames, prompt,

@@ -126,6 +126,88 @@ def quantize_with_centers(rgb, centers, downscale=512):
     return cv2.medianBlur(quant, 5)
 
 
+# ---------------------------------------------------------------- 文字区域保护
+def detect_text_mask(line_binary, min_area=4, max_area=300,
+                     cluster_distance=40, dilate_size=5):
+    """从二值线稿中检测文字/对话区域，返回保护遮罩（255=需保护的文字区）。
+
+    原理：文字由大量小面积连通块聚集而成。筛选面积在 [min_area, max_area]
+    范围内的连通块，再通过膨胀将邻近的文字笔画合并为文字块。
+    """
+    # 线条像素为 255，找连通块
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(
+        line_binary, 8)
+    text_components = np.zeros_like(line_binary)
+    for i in range(1, n):
+        area = stats[i, cv2.CC_STAT_AREA]
+        if min_area <= area <= max_area:
+            text_components[labels == i] = 255
+    # 膨胀合并邻近文字笔画为文字块
+    if dilate_size > 0:
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, (dilate_size, dilate_size))
+        text_components = cv2.dilate(text_components, kernel, iterations=2)
+    # 再次连通块分析，过滤掉孤立的小点（只保留合并后的大块）
+    n2, labels2, stats2, _ = cv2.connectedComponentsWithStats(
+        text_components, 8)
+    mask = np.zeros_like(line_binary)
+    for i in range(1, n2):
+        area = stats2[i, cv2.CC_STAT_AREA]
+        # 合并后的文字块通常 > 200px（至少几个字）
+        if area >= 200:
+            mask[labels2 == i] = 255
+    return mask
+
+
+def apply_text_protection(final_rgb, original_rgb, text_mask):
+    """将文字区域从原图复制回最终结果，避免神经上色污染文字。
+
+    text_mask: 255=文字区域, 0=非文字区域
+    """
+    if text_mask is None or np.count_nonzero(text_mask) == 0:
+        return final_rgb
+    mask3 = np.stack([text_mask > 0] * 3, axis=-1)
+    result = final_rgb.copy()
+    result[mask3] = original_rgb[mask3]
+    return result
+
+
+# ---------------------------------------------------------------- 参考图调色板迁移
+def extract_palette(rgb, k=8):
+    """从图片中提取主色调色板，返回 k 个 RGB 颜色（按亮度排序）。"""
+    h, w = rgb.shape[:2]
+    scale = 512.0 / max(h, w)
+    small = cv2.resize(rgb, (max(1, int(w * scale)), max(1, int(h * scale))),
+                       interpolation=cv2.INTER_AREA) if scale < 1.0 else rgb
+    pixels = small.reshape(-1, 3).astype(np.float32)
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
+    _, labels, centers = cv2.kmeans(
+        pixels, k, None, criteria, 3, cv2.KMEANS_PP_CENTERS)
+    # 按亮度排序
+    lum = centers[:, 0] * 0.299 + centers[:, 1] * 0.587 + centers[:, 2] * 0.114
+    order = lum.argsort()
+    return centers[order].astype(np.uint8)
+
+
+def transfer_palette(target_rgb, ref_rgb, k=8):
+    """将参考图的调色板迁移到目标图。
+
+    原理：分别提取两图的 k 色调色板（按亮度排序），将目标图中每个颜色
+    映射到参考图中相同亮度等级的颜色，实现色彩风格迁移。
+    """
+    ref_palette = extract_palette(ref_rgb, k)
+    tgt_palette = extract_palette(target_rgb, k)
+    # 构建映射：目标调色板 -> 参考调色板（按亮度等级一一对应）
+    h, w = target_rgb.shape[:2]
+    pixels = target_rgb.reshape(-1, 3).astype(np.float32)
+    # 对每个像素，找到最近的目标调色板颜色，替换为对应参考颜色
+    d = np.sum((pixels[:, None, :] - tgt_palette.astype(np.float32)[None, :, :]) ** 2, axis=2)
+    idx = d.argmin(axis=1)
+    mapped = ref_palette[idx].reshape(h, w, 3).astype(np.uint8)
+    # 轻度模糊融合，避免色块过于生硬
+    return cv2.bilateralFilter(mapped, 5, 40, 40)
+
+
 # ---------------------------------------------------------------- 明暗/反射光/高光
 def luminance_map(rgb, sigma_ratio=0.05):
     """低频亮度图，0..1。"""
@@ -202,27 +284,31 @@ def export_lineart_svg(line_binary, out_svg):
 
 
 # ---------------------------------------------------------------- 主流水线
-def _make_cond(cn_variant, rgb, gray01, line_binary):
-    """按 ControlNet 变体生成条件图（uint8 单通道）。
+def _parse_cn_variants(cn_variant):
+    """将 cn_variant 解析为变体列表（支持逗号分隔字符串）。"""
+    if isinstance(cn_variant, str):
+        return [v.strip() for v in cn_variant.split(",") if v.strip()]
+    return list(cn_variant)
 
-    lineart 系列（anime/standard/scribble）：白底黑线；
-    canny：白底黑边缘；depth：近白远黑深度灰度图。
-    """
-    if cn_variant == "canny":
-        edges = cv2.Canny((gray01 * 255).astype(np.uint8), 100, 200)
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        edges = cv2.dilate(edges, kernel, iterations=1)
-        return np.where(edges > 0, 0, 255).astype(np.uint8)
-    if cn_variant == "depth":
-        from neural import depth_map
-        return depth_map(rgb)
-    return np.where(line_binary > 0, 0, 255).astype(np.uint8)
+
+def _make_cond(cn_variant, rgb, gray01, line_binary):
+    """按单个 ControlNet 变体生成条件图（uint8 单通道）。"""
+    from cond_preprocessors import get_cond
+    return get_cond(cn_variant, rgb, gray01, line_binary)
+
+
+def _make_conds(cn_variant, rgb, gray01, line_binary):
+    """按 ControlNet 变体（可多个）生成条件图列表。"""
+    variants = _parse_cn_variants(cn_variant)
+    return [_make_cond(v, rgb, gray01, line_binary) for v in variants]
 
 
 def process_image(src, out_dir, line_eps=0.02, k=10, neural_lineart=False,
                   neural_color=False, prompt=None, seed=None,
                   a2s_variant="improved", cn_variant="anime", strength=None,
-                  input_lineart=False, photo_color=False, anime_gan=False):
+                  input_lineart=False, photo_color=False, anime_gan=False,
+                  cn_scale=None, protect_text=False, reference_color=None,
+                  color_hint=None, gen_size=768):
     os.makedirs(out_dir, exist_ok=True)
     rgb = imread_rgb(src)
     h, w = rgb.shape[:2]
@@ -281,10 +367,44 @@ def process_image(src, out_dir, line_eps=0.02, k=10, neural_lineart=False,
         from neural import DEFAULT_PROMPT, NeuralColorizer
         colorizer = NeuralColorizer(cn_variant=cn_variant)
         pr = prompt or DEFAULT_PROMPT
-        cond = _make_cond(cn_variant, rgb, gray01, line_binary)
+        conds = _make_conds(cn_variant, rgb, gray01, line_binary)
+        cond_arg = conds[0] if len(conds) == 1 else conds
+        # 参考图驱动上色：迁移参考图调色板到固有色，作为 img2img 初始图
+        init_img = rgb if strength else None
+        eff_strength = strength
+        if reference_color and os.path.exists(reference_color):
+            ref_bgr = cv2.imread(reference_color, cv2.IMREAD_COLOR)
+            if ref_bgr is not None:
+                ref_rgb = cv2.cvtColor(ref_bgr, cv2.COLOR_BGR2RGB)
+                ref_rgb = cv2.resize(ref_rgb, (w, h),
+                                     interpolation=cv2.INTER_AREA)
+                color_guide = transfer_palette(flat, ref_rgb, k=8)
+                stages.append(("ref_color_guide", color_guide,
+                               "参考图调色板迁移"))
+                init_img = color_guide
+                eff_strength = strength if strength else 0.5
+        # 用户点选颜色提示：直接作为 img2img 初始图（优先级最高）
+        if color_hint and os.path.exists(color_hint):
+            hint_bgr = cv2.imread(color_hint, cv2.IMREAD_COLOR)
+            if hint_bgr is not None:
+                hint_rgb = cv2.cvtColor(hint_bgr, cv2.COLOR_BGR2RGB)
+                hint_rgb = cv2.resize(hint_rgb, (w, h),
+                                      interpolation=cv2.INTER_LINEAR)
+                stages.append(("color_hint", hint_rgb, "用户颜色提示"))
+                init_img = hint_rgb
+                eff_strength = strength if strength else 0.45
         neural_final = colorizer.colorize(
-            cond, pr, seed=seed, strength=strength,
-            init_rgb=rgb if strength else None)
+            cond_arg, pr, seed=seed, strength=eff_strength,
+            scale=cn_scale if cn_scale else 0.85,
+            size=gen_size,
+            init_rgb=init_img)
+        # 文字区域保护：检测文字并从原图复制回来
+        if protect_text:
+            text_mask = detect_text_mask(line_binary)
+            if np.count_nonzero(text_mask) > 0:
+                neural_final = apply_text_protection(
+                    neural_final, rgb, text_mask)
+                stages.append(("text_mask", text_mask, "文字保护遮罩"))
         stages.append(("final_neural", neural_final, "FINAL 神经上色(ControlNet)"))
 
     # 扩展模型：黑白照片上色（DDColor）
@@ -457,7 +577,8 @@ def process_video(src, out_dir, line_eps=-0.10, k=10, max_side=1280,
                   neural_lineart=False, a2s_variant="improved",
                   neural_color=False, prompt=None, seed=None,
                   cn_variant="anime", strength=None, input_lineart=False,
-                  photo_color=False, anime_gan=False, animate_diff=False):
+                  photo_color=False, anime_gan=False, animate_diff=False,
+                  cn_scale=None, gen_size=768):
     """视频 -> 逐帧 线稿/填色/还原 -> 合成输出视频（video_final.mp4 与 video_lineart.mp4）。
 
     首帧做 k-means 取聚类中心，后续帧复用中心，保证颜色不闪烁。
@@ -518,9 +639,12 @@ def process_video(src, out_dir, line_eps=-0.10, k=10, max_side=1280,
                 from neural import DEFAULT_PROMPT, NeuralColorizer
                 colorizer = NeuralColorizer(cn_variant=cn_variant)
                 pr = prompt or DEFAULT_PROMPT
-            cond = _make_cond(cn_variant, rgb, gray01, line_binary)
+            conds = _make_conds(cn_variant, rgb, gray01, line_binary)
+            cond_arg = conds[0] if len(conds) == 1 else conds
             final_lines = colorizer.colorize(
-                cond, pr, seed=vseed, strength=strength,
+                cond_arg, pr, seed=vseed, strength=strength,
+                scale=cn_scale if cn_scale else 0.85,
+                size=gen_size,
                 init_rgb=rgb if strength else None)
         else:
             if centers is None:
@@ -600,6 +724,57 @@ def process_video(src, out_dir, line_eps=-0.10, k=10, max_side=1280,
     return out_dir
 
 
+# ---------------------------------------------------------------- 配置文件
+CONFIG_VERSION = "1.0"
+_CONFIG_KEYS = [
+    "lines", "k", "maxside", "neural_lineart", "a2s", "neural_color",
+    "prompt", "seed", "cn", "strength", "input_lineart",
+    "photo_color", "anime_gan", "animate_diff", "gen_size",
+]
+
+
+def save_config(args, path):
+    """将当前参数保存为 JSON 配置文件。"""
+    import json
+    from datetime import datetime
+    cfg = {
+        "version": CONFIG_VERSION,
+        "created": datetime.now().isoformat(timespec="seconds"),
+        "params": {k: getattr(args, k, None) for k in _CONFIG_KEYS},
+    }
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    print("配置已保存: %s" % path)
+
+
+def load_config(path):
+    """从 JSON 配置文件加载参数，返回 dict。缺失键保持 None（使用 CLI 默认值）。"""
+    import json
+    with open(path, "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    params = cfg.get("params", {})
+    print("已加载配置: %s (版本 %s)" % (path, cfg.get("version", "?")))
+    return params
+
+
+def apply_config_defaults(ap, config_params):
+    """将配置文件中的参数设为 argparse 默认值（CLI 显式参数仍优先）。
+
+    对 store_true 类型的参数，配置文件中的 true/false 会覆盖默认值。
+    """
+    for key, val in config_params.items():
+        if val is None:
+            continue
+        # argparse 使用下划线，CLI 用连字符
+        dest = key
+        try:
+            action = next(a for a in ap._actions if a.dest == dest)
+            action.default = val
+        except StopIteration:
+            pass
+
+
 # ---------------------------------------------------------------- 入口
 def main():
     ap = argparse.ArgumentParser(description="图片 -> 线稿 -> 分步填色 -> 还原 自动化流水线")
@@ -621,9 +796,12 @@ def main():
     ap.add_argument("--a2s", default="improved", choices=["default", "improved"],
                     help="Anime2Sketch 权重变体（improved 质量更高）")
     ap.add_argument("--cn", default="anime",
-                    choices=["anime", "standard", "canny", "scribble", "depth"],
                     help="ControlNet 变体：anime=动漫线稿(默认), standard=通用线稿, "
-                         "canny=边缘, scribble=草图, depth=深度")
+                         "canny=边缘, scribble=草图, depth=深度, manga_line=漫画线稿。"
+                         "支持逗号分隔多值堆叠，如 --cn anime,depth")
+    ap.add_argument("--cn-scale", default=None,
+                    help="多 ControlNet 时各变体的权重（逗号分隔，如 0.85,0.6），"
+                         "默认全部 0.85")
     ap.add_argument("--neural-strength", type=float, default=None, metavar="0-1",
                     help="img2img 混合强度：用原图风格还原（越接近0越贴近原图，0.35~0.6 推荐）")
     ap.add_argument("--input-lineart", action="store_true",
@@ -634,9 +812,56 @@ def main():
                     help="照片转动漫风格（AnimeGANv2 ONNX，图片与视频均支持）")
     ap.add_argument("--animate-diff", action="store_true",
                     help="视频用 AnimateDiff 帧间一致性神经上色（替代逐帧上色，需额外权重）")
+    ap.add_argument("--low-vram", action="store_true",
+                    help="低显存模式：启用 sequential CPU offload，4GB 显存也能跑神经上色（速度较慢）")
+    ap.add_argument("--protect-text", action="store_true",
+                    help="神经上色时自动检测并保护文字/对话区域，避免上色污染")
+    ap.add_argument("--reference-color", default=None, metavar="REF.png",
+                    help="参考图驱动上色：迁移参考图的调色板到线稿（自动启用 img2img 混合）")
+    ap.add_argument("--color-hint", default=None, metavar="HINT.png",
+                    help="颜色提示图：用户点选的颜色标记图，作为 img2img 初始图（优先级最高）")
+    ap.add_argument("--pipeline", default=None, metavar="PIPELINE.json",
+                    help="使用节点化管线 JSON 定义处理流程（替代默认分步管线）。"
+                         "预设: pipelines/default_classic.json, pipelines/neural_color.json, "
+                         "pipelines/minimal_lineart_only.json")
+    ap.add_argument("--gen-size", type=int, default=768,
+                    help="神经上色生成分辨率（默认768，低显存模式自动降为512）")
     ap.add_argument("--debug", action="store_true",
                     help="出错时显示完整堆栈（默认只显示一句话原因）")
+    ap.add_argument("--config", default=None, metavar="FILE.json",
+                    help="从 JSON 配置文件加载参数（CLI 显式参数优先覆盖）")
+    ap.add_argument("--save-config", default=None, metavar="FILE.json",
+                    help="将本次参数保存为 JSON 配置文件后退出（不执行处理）")
     args = ap.parse_args()
+
+    # 加载配置文件（在 parse_args 之后应用，使 CLI 参数优先）
+    if args.config:
+        if not os.path.exists(args.config):
+            sys.exit("配置文件不存在: %s" % args.config)
+        cfg_params = load_config(args.config)
+        # 仅在用户未显式指定该参数时使用配置值
+        for key, val in cfg_params.items():
+            if val is None:
+                continue
+            dest = key
+            try:
+                action = next(a for a in ap._actions if a.dest == dest)
+                # 检查用户是否在命令行显式设置了该参数
+                if getattr(args, dest, None) == action.default:
+                    setattr(args, dest, val)
+            except StopIteration:
+                pass
+
+    # 保存配置后退出
+    if args.save_config:
+        save_config(args, args.save_config)
+        return
+
+    # 设置显存模式
+    if args.low_vram:
+        from vram_manager import vram
+        vram.low_vram = True
+        print("[vram] 低显存模式已启用（sequential CPU offload）")
 
     inp = args.input
     if os.path.isdir(inp):
@@ -648,6 +873,11 @@ def main():
     else:
         files = [inp]
 
+    # 解析多 ControlNet 权重
+    _cn_scale = None
+    if args.cn_scale:
+        _cn_scale = [float(s.strip()) for s in args.cn_scale.split(",") if s.strip()]
+
     for f in files:
         if not os.path.exists(f):
             print("跳过（文件不存在）: %s" % f)
@@ -657,6 +887,26 @@ def main():
             print("跳过（不支持的文件类型 %s）: %s" % (ext or "无扩展名", f))
             continue
         try:
+            # 节点化管线模式
+            if args.pipeline:
+                from pipeline_nodes import DAGPipeline
+                pipe = DAGPipeline.from_json(args.pipeline)
+                out = args.out or os.path.join(
+                    os.path.dirname(os.path.abspath(f)) or ".", "out_pipeline")
+                pipe.run(f, out,
+                         line_eps=args.lines, k=args.k,
+                         neural_lineart=args.neural_lineart,
+                         a2s_variant=args.a2s,
+                         neural_color=args.neural_color,
+                         prompt=args.prompt, seed=args.seed,
+                         cn_variant=args.cn,
+                         strength=args.neural_strength,
+                         cn_scale=_cn_scale,
+                         protect_text=args.protect_text,
+                         reference_color=args.reference_color,
+                         color_hint=args.color_hint)
+                print("管线完成: %s -> %s" % (os.path.basename(f), out))
+                continue
             if ext in VIDEO_EXTS:
                 out = args.out or os.path.join(os.path.dirname(os.path.abspath(f)) or ".", "out_video")
                 process_video(f, out, line_eps=args.lines, k=args.k,
@@ -670,7 +920,9 @@ def main():
                               input_lineart=args.input_lineart,
                               photo_color=args.photo_color,
                               anime_gan=args.anime_gan,
-                              animate_diff=args.animate_diff)
+                              animate_diff=args.animate_diff,
+                              cn_scale=_cn_scale,
+                              gen_size=args.gen_size)
             else:
                 out = args.out or os.path.join(os.path.dirname(os.path.abspath(f)) or ".", "out")
                 process_image(f, out, line_eps=args.lines, k=args.k,
@@ -682,7 +934,12 @@ def main():
                               strength=args.neural_strength,
                               input_lineart=args.input_lineart,
                               photo_color=args.photo_color,
-                              anime_gan=args.anime_gan)
+                              anime_gan=args.anime_gan,
+                              cn_scale=_cn_scale,
+                              protect_text=args.protect_text,
+                              reference_color=args.reference_color,
+                              color_hint=args.color_hint,
+                              gen_size=args.gen_size)
         except Exception as e:
             if args.debug:
                 traceback.print_exc()
