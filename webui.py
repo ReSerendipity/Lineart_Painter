@@ -503,9 +503,6 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/" or self.path == "/index.html":
             self._send(200, PAGE, "text/html; charset=utf-8")
         elif self.path == "/favicon.ico":
-            self.send_response(204)
-            self.end_headers()
-        elif self.path == "/favicon.ico":
             p = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "assets", "icons", "lineart-icon.ico")
             if os.path.exists(p):
