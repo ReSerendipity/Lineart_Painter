@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="lpPlate" cx="32%" cy="24%" r="92%">
+      <stop offset="0" stop-color="#24353F"/>
+      <stop offset="0.55" stop-color="#14202A"/>
+      <stop offset="1" stop-color="#0B1218"/>
+    </radialGradient>
+    <linearGradient id="lpTopGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.09"/>
+      <stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="lpBottomShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.36"/>
+    </linearGradient>
+    <linearGradient id="lpRim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E8D0A8" stop-opacity="0.75"/>
+      <stop offset="0.5" stop-color="#C9A876" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#9A7A48" stop-opacity="0.6"/>
+    </linearGradient>
+    <linearGradient id="lpPaper" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#F8F3E7"/>
+      <stop offset="1" stop-color="#E2D7C0"/>
+    </linearGradient>
+    <linearGradient id="lpWash" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#E0523C"/>
+      <stop offset="0.5" stop-color="#D14778"/>
+      <stop offset="1" stop-color="#2E5FD0"/>
+    </linearGradient>
+    <radialGradient id="lpShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="lpPlateClip">
+      <rect x="64" y="64" width="896" height="896" rx="214"/>
+    </clipPath>
+    <clipPath id="lpPaperClip">
+      <rect x="-210" y="-284" width="420" height="568" rx="26"/>
+    </clipPath>
+    <clipPath id="lpSweepClip">
+      <path d="M -198 196 C -120 130 -40 55 35 -35 C 95 -110 150 -175 188 -232 L 226 -198 C 188 -140 135 -70 75 5 C -5 105 -85 178 -150 248 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- base plate (family shape, ink-teal night) -->
+  <rect x="64" y="64" width="896" height="896" rx="214" fill="url(#lpPlate)"/>
+  <g clip-path="url(#lpPlateClip)">
+    <rect x="64" y="64" width="896" height="896" fill="url(#lpTopGlow)"/>
+    <rect x="64" y="64" width="896" height="896" fill="url(#lpBottomShade)"/>
+  </g>
+  <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" fill="none" stroke="url(#lpRim)" stroke-width="3"/>
+
+  <!-- paper drop shadow -->
+  <ellipse cx="512" cy="852" rx="252" ry="36" fill="url(#lpShadow)"/>
+
+  <!-- canvas / paper panel -->
+  <g transform="translate(512,510) rotate(-6)">
+    <rect x="-210" y="-284" width="420" height="568" rx="26" fill="url(#lpPaper)"/>
+    <g clip-path="url(#lpPaperClip)">
+      <!-- ===== line-art landscape (full sheet) ===== -->
+      <g fill="none" stroke="#26221F" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="-78" cy="-150" r="58"/>
+        <path d="M -182 58 L -95 -108 L -22 8 L 45 -92 L 132 58"/>
+        <path d="M -188 58 L 188 58"/>
+        <path d="M -140 110 L 30 110"/>
+        <path d="M -50 150 L 130 150"/>
+        <path d="M -120 190 L 60 190"/>
+        <path d="M 72 -166 C 80 -178 92 -178 98 -166 C 106 -178 118 -178 126 -166"/>
+      </g>
+
+      <!-- ===== paint sweep band ===== -->
+      <path d="M -198 196 C -120 130 -40 55 35 -35 C 95 -110 150 -175 188 -232 L 226 -198 C 188 -140 135 -70 75 5 C -5 105 -85 178 -150 248 Z" fill="url(#lpWash)"/>
+
+      <!-- flat colors revealed inside the sweep -->
+      <g clip-path="url(#lpSweepClip)">
+        <circle cx="-78" cy="-150" r="58" fill="#E8B04B"/>
+        <path d="M -182 58 L -95 -108 L -22 58 Z" fill="#2E5FD0"/>
+        <path d="M -60 58 L 45 -92 L 150 58 Z" fill="#E0523C"/>
+        <rect x="-190" y="58" width="380" height="46" fill="#C9A876"/>
+        <rect x="-190" y="104" width="380" height="130" fill="#A9C0EE" fill-opacity="0.85"/>
+        <!-- contours redrawn over the color -->
+        <g fill="none" stroke="#26221F" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="-78" cy="-150" r="58"/>
+          <path d="M -182 58 L -95 -108 L -22 8 L 45 -92 L 132 58"/>
+          <path d="M -188 58 L 188 58"/>
+          <path d="M -140 110 L 30 110"/>
+          <path d="M -50 150 L 130 150"/>
+          <path d="M -120 190 L 60 190"/>
+        </g>
+      </g>
+
+      <!-- sweep edge highlight -->
+      <path d="M -198 196 C -120 130 -40 55 35 -35 C 95 -110 150 -175 188 -232" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="4" stroke-linecap="round"/>
+
+      <!-- paint drips -->
+      <circle cx="-166" cy="262" r="9" fill="#E0523C"/>
+      <circle cx="204" cy="-238" r="7" fill="#2E5FD0"/>
+      <circle cx="176" cy="-212" r="4.5" fill="#C9A876"/>
+
+      <!-- paper inner edge -->
+      <rect x="-210" y="-284" width="420" height="568" rx="26" fill="none" stroke="#26221F" stroke-opacity="0.18" stroke-width="3"/>
+    </g>
+    <!-- paper gold hairline (family cue) -->
+    <rect x="-211.5" y="-285.5" width="423" height="571" rx="27.5" fill="none" stroke="#C9A876" stroke-opacity="0.5" stroke-width="3"/>
+  </g>
+</svg>

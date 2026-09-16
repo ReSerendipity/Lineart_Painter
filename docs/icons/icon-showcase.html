@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="zh-CN" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>程序图标设计 · Card-Studio × Lineart_Painter</title>
+<style>
+  /* ============ seed tokens ============ */
+  :root{
+    --seed-bg:#FAF8F3;
+    --seed-fg:#221E28;
+    --seed-surface:#FFFFFF;
+    --seed-primary:#C9A876;
+    --seed-accent:#9E7FD9;
+    --seed-radius:16px;
+    --type-scale:1;
+    --icon-radius:214px;
+
+    /* derived page tokens */
+    --bg:var(--seed-bg);
+    --fg:var(--seed-fg);
+    --panel:var(--seed-surface);
+    --muted:color-mix(in oklab, var(--seed-fg) 56%, var(--seed-bg));
+    --faint:color-mix(in oklab, var(--seed-fg) 38%, var(--seed-bg));
+    --line:color-mix(in oklab, var(--seed-fg) 14%, var(--seed-bg));
+    --panel-2:color-mix(in oklab, var(--seed-surface) 88%, var(--seed-fg));
+    --stage:color-mix(in oklab, var(--seed-surface) 92%, var(--seed-primary));
+
+    /* mock environments (fixed, independent of appearance) */
+    --mock-night-0:#241B38; --mock-night-1:#0F0C16;
+    --mock-paper-0:#F3EFE6; --mock-paper-1:#DDD6C6;
+    --mock-bar-dark:#17121F; --mock-bar-light:#EFEBE1;
+    --mock-on-dark:#EDE6D8; --mock-on-light:#2C2418;
+
+    /* icon palette — Card-Studio (dark-night champagne gold) */
+    --ic-gold-bright:#E3CBA0; --ic-gold:#C9A876; --ic-gold-deep:#9A7A48; --ic-gold-edge:#5C4628;
+    --ic-gold-hi:#E8D0A8; --ic-gold-deeper:#8F6E40; --ic-bronze:#6B5228;
+    --ic-night-0:#2A1F42; --ic-night-1:#171126; --ic-night-2:#0C0912;
+    --ic-face-0:#372A55; --ic-face-1:#1D1633; --ic-face-2:#100C1B;
+    --ic-purple:#9E7FD9; --ic-purple-bright:#B79CF0;
+    /* icon palette — Lineart Painter (ink-teal night + painter colors) */
+    --ic-teal-0:#24353F; --ic-teal-1:#14202A; --ic-teal-2:#0B1218;
+    --ic-paper-0:#F8F3E7; --ic-paper-1:#E2D7C0;
+    --ic-vermilion:#E0523C; --ic-cobalt:#2E5FD0; --ic-magenta:#D14778;
+    --ic-sun:#E8B04B; --ic-water:#A9C0EE;
+    --ic-line:#26221F;
+    --ic-white:#FFFFFF; --ic-black:#000000;
+    /* photo scene palette (multi-image frames) */
+    --ic-sky-warm-0:#F0C878; --ic-sky-warm-1:#B87333;
+    --ic-sky-cool-0:#3A5FB0; --ic-sky-cool-1:#1A2350;
+    --ic-sky-neu-0:#9E7FD9; --ic-sky-neu-1:#4A3576;
+    --ic-hill-warm-1:#6E4222; --ic-hill-warm-2:#4A2C18; --ic-hill-warm-3:#2E1B10;
+    --ic-hill-cool-1:#0C1230; --ic-hill-cool-2:#070B22;
+    --ic-hill-neu-1:#241B38; --ic-hill-neu-2:#1A1330; --ic-hill-neu-3:#150F28;
+    --ic-sky1a:#F0C878; --ic-sky1b:#B87333;
+    --ic-sky2a:#3A5FB0; --ic-sky2b:#1A2350;
+    --ic-sky3b:#4A3576;
+    --ic-sky4a:#62B6A4; --ic-sky4b:#1F5E52;
+    --ic-sky5a:#E8909C; --ic-sky5b:#8E3A4E;
+    --ic-sky6a:#F5D98A; --ic-sky6b:#C98F3C;
+    --ic-h1a:#6E4222; --ic-h1b:#3A2214;
+    --ic-h2a:#0C1230; --ic-h2b:#070B22;
+    --ic-h3b:#1A1330;
+    --ic-h4a:#17544A; --ic-h4b:#0E3A33;
+    --ic-h5a:#5A2432; --ic-h5b:#3A1620;
+    --ic-h6a:#7A5A22; --ic-h6b:#4E3812;
+    --ic-sun-face:#FCEFC7; --ic-moon:#E8D0A8; --ic-star:#F0E4C8;
+    --ic-disc-warm:#FFF6DD; --ic-disc-rose:#F7E4DC;
+    /* plate variants for H */
+    --ic-ivory-0:#FDFBF5; --ic-ivory-1:#F1EADB; --ic-ivory-2:#DFD2B8;
+    --ic-plum-0:#6B2F55; --ic-plum-1:#38172F; --ic-plum-2:#1C0B1A;
+    --ic-rim-ivory:#8A6D3B; --ic-rim-ivory-2:#4A3418;
+    /* studio backdrop + name band (figure version) */
+    --ic-figbg-0:#3A2C58; --ic-figbg-1:#221839; --ic-figbg-2:#120D1F;
+    --ic-band:#0E0A18;
+    /* white plate (new default) + card yellow */
+    --ic-white-plate-0:#FFFFFF; --ic-white-plate-1:#F7F5EF; --ic-white-plate-2:#E9E6DC;
+    --ic-card-yellow:#F6D66E;
+    /* fanned cards side colors */
+    --ic-fan-plum:#4A3576; --ic-fan-teal:#1F5E52;
+
+    --font-display:"Segoe UI Variable Display","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-body:"Segoe UI Variable Text","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-mono:"Cascadia Mono",Consolas,"JetBrains Mono",monospace;
+  }
+  html[data-appearance="dark"]{
+    --seed-bg:#121017; --seed-fg:#EDE8F0; --seed-surface:#1B1822;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:calc(16px * var(--type-scale))}
+  body{
+    background:var(--bg);color:var(--fg);
+    font-family:var(--font-body);line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:70rem;margin:0 auto;padding:0 2rem}
+  section{padding:3.5rem 0;border-top:1px solid var(--line)}
+  h1,h2,h3{font-family:var(--font-display);letter-spacing:-0.015em;line-height:1.15}
+  h1{font-size:2.5rem;font-weight:600;letter-spacing:-0.02em;max-width:22ch}
+  h2{font-size:1.5rem;font-weight:600;margin-bottom:.5rem}
+  h3{font-size:1.0625rem;font-weight:550}
+  .eyebrow{
+    font-family:var(--font-mono);font-size:.75rem;font-weight:500;
+    text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+    margin-bottom:1rem;
+  }
+  .lead{max-width:56ch;color:var(--muted);font-size:1.0625rem}
+  .section-note{color:var(--muted);max-width:64ch;margin-bottom:2rem;font-size:.9375rem}
+  .mono{font-family:var(--font-mono);font-size:.8125rem;letter-spacing:.01em}
+
+  /* ============ header ============ */
+  header.hero{padding:4.5rem 0 3.5rem}
+  .hero-meta{display:flex;gap:2.5rem;margin-top:2rem;flex-wrap:wrap}
+  .hero-meta div{font-size:.875rem;color:var(--muted)}
+  .hero-meta strong{display:block;color:var(--fg);font-weight:550;font-size:.9375rem;margin-bottom:.125rem}
+
+  /* ============ icon hero cards ============ */
+  .icon-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+  @media(max-width:56rem){.icon-grid{grid-template-columns:1fr}}
+  .icon-card{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--seed-radius);overflow:hidden;
+  }
+  .icon-stage{
+    display:grid;place-items:center;padding:3.5rem 2rem;
+    background:
+      radial-gradient(60% 70% at 30% 20%, color-mix(in oklab, var(--seed-primary) 12%, transparent), transparent 70%),
+      var(--stage);
+    border-bottom:1px solid var(--line);
+  }
+  .icon-stage svg{width:16.25rem;height:16.25rem;display:block;filter:drop-shadow(0 1.25rem 2rem color-mix(in oklab, var(--ic-black) 30%, transparent))}
+  .icon-body{padding:1.5rem 1.75rem 1.75rem}
+  .icon-body .name{font-family:var(--font-display);font-size:1.25rem;font-weight:600;letter-spacing:-0.01em}
+  .icon-body .name-cn{color:var(--muted);font-size:.875rem;margin-left:.5rem}
+  .concept{color:var(--muted);font-size:.9375rem;margin-top:.5rem;max-width:44ch}
+  .chips{display:flex;gap:.5rem;margin-top:1.125rem;flex-wrap:wrap}
+  .chip{display:flex;align-items:center;gap:.375rem;border:1px solid var(--line);border-radius:999px;padding:.25rem .625rem .25rem .375rem;font-family:var(--font-mono);font-size:.6875rem;color:var(--muted);background:var(--panel)}
+  .chip i{width:.875rem;height:.875rem;border-radius:999px;display:block;border:1px solid color-mix(in oklab, var(--ic-black) 12%, transparent)}
+
+  /* ============ size ladder ============ */
+  .ladder{display:flex;align-items:flex-end;gap:2.25rem;flex-wrap:wrap;padding:1.75rem 2rem;background:var(--panel);border:1px solid var(--line);border-radius:var(--seed-radius)}
+  .ladder + .ladder{margin-top:1rem}
+  .step{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+  .step svg{display:block}
+  .step span{font-family:var(--font-mono);font-size:.6875rem;color:var(--faint);letter-spacing:.02em}
+  .ladder-label{display:flex;align-items:center;gap:.625rem;margin:1.75rem 0 .625rem}
+  .ladder-label .dot{width:.625rem;height:.625rem;border-radius:999px;background:var(--seed-primary)}
+  .ladder-label h3{font-size:.9375rem;font-weight:550}
+  .ladder-label .mono{color:var(--faint)}
+
+  /* ============ environment mocks ============ */
+  .mock{border-radius:var(--seed-radius);overflow:hidden;border:1px solid var(--line);margin-bottom:1.25rem}
+  .wall-night{background:linear-gradient(160deg,var(--mock-night-0),var(--mock-night-1))}
+  .wall-paper{background:linear-gradient(160deg,var(--mock-paper-0),var(--mock-paper-1))}
+  .desktop{display:flex;gap:2.5rem;padding:2.5rem 2rem 2rem}
+  .dicon{display:flex;flex-direction:column;align-items:center;gap:.625rem;width:6.5rem}
+  .dicon svg{width:4rem;height:4rem;filter:drop-shadow(0 .5rem .875rem color-mix(in oklab, var(--ic-black) 45%, transparent))}
+  .dicon span{font-size:.8125rem;padding:.125rem .5rem;border-radius:.375rem}
+  .wall-night .dicon span{color:var(--mock-on-dark);background:color-mix(in oklab, var(--ic-white) 12%, transparent)}
+  .wall-paper .dicon span{color:var(--mock-on-light)}
+  .taskbar{display:flex;align-items:center;gap:1.25rem;padding:.625rem 1.25rem}
+  .taskbar.dark{background:var(--mock-bar-dark)}
+  .taskbar.light{background:var(--mock-bar-light);border-top:1px solid var(--line)}
+  .titem{display:flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:.5rem}
+  .taskbar.dark .titem{background:color-mix(in oklab, var(--ic-white) 10%, transparent)}
+  .taskbar.light .titem{background:color-mix(in oklab, var(--ic-black) 7%, transparent)}
+  .titem svg{width:1.5rem;height:1.5rem}
+  .titem span{font-size:.8125rem}
+  .taskbar.dark .titem span{color:var(--mock-on-dark)}
+  .taskbar.light .titem span{color:var(--mock-on-light)}
+  .mock-caption{font-family:var(--font-mono);font-size:.6875rem;color:var(--faint);margin:.375rem 0 1.25rem}
+
+  /* ============ family rules ============ */
+  .rules{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+  @media(max-width:56rem){.rules{grid-template-columns:1fr 1fr}}
+  .rule{background:var(--panel);border:1px solid var(--line);border-radius:var(--seed-radius);padding:1.25rem}
+  .rule svg{width:100%;height:5.5rem;display:block;margin-bottom:.875rem}
+  .rule h3{font-size:.9375rem;margin-bottom:.25rem}
+  .rule p{font-size:.8125rem;color:var(--muted)}
+  .rule .mono{color:var(--faint);display:block;margin-top:.5rem;font-size:.6875rem}
+
+  /* ============ delivery ============ */
+  .delivery{display:grid;grid-template-columns:1.1fr .9fr;gap:1.5rem}
+  @media(max-width:56rem){.delivery{grid-template-columns:1fr}}
+  .filelist{background:var(--panel);border:1px solid var(--line);border-radius:var(--seed-radius);padding:1.5rem 1.75rem}
+  .filelist h3{margin-bottom:.875rem}
+  .filelist ul{list-style:none}
+  .filelist li{display:flex;justify-content:space-between;gap:1rem;padding:.5rem 0;border-bottom:1px dashed var(--line);font-size:.875rem}
+  .filelist li:last-child{border-bottom:none}
+  .filelist .path{font-family:var(--font-mono);font-size:.8125rem}
+  .filelist .size{color:var(--faint);font-family:var(--font-mono);font-size:.75rem;white-space:nowrap}
+  .steps{display:flex;flex-direction:column;gap:1rem}
+  .stepcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--seed-radius);padding:1.25rem 1.5rem}
+  .stepcard .num{font-family:var(--font-mono);font-size:.6875rem;color:var(--seed-primary);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:.375rem}
+  .stepcard p{font-size:.875rem;color:var(--muted)}
+  .stepcard strong{color:var(--fg);font-weight:550}
+
+  /* ============ alternates ============ */
+  .alt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+  .alt-grid.two{grid-template-columns:1fr 1fr}
+  .alt-grid.four{grid-template-columns:repeat(4,1fr)}
+  .alt-grid.four .alt-stage svg{width:10.5rem;height:10.5rem}
+  .alt-grid.four .alt-stage{padding:1.5rem .75rem}
+  @media(max-width:64rem){.alt-grid.four{grid-template-columns:1fr 1fr}}
+  .alt-grid.two .alt-stage svg{width:15rem;height:15rem}
+  @media(max-width:56rem){.alt-grid{grid-template-columns:1fr}.alt-grid.two{grid-template-columns:1fr}}
+  .alt{background:var(--panel);border:1px solid var(--line);border-radius:var(--seed-radius);overflow:hidden}
+  .alt-stage{display:grid;place-items:center;padding:2rem 1rem;background:var(--stage);border-bottom:1px solid var(--line)}
+  .alt-stage svg{width:12.5rem;height:12.5rem;display:block;filter:drop-shadow(0 .75rem 1.25rem color-mix(in oklab, var(--ic-black) 28%, transparent))}
+  .alt-body{padding:1.125rem 1.375rem 1.375rem}
+  .alt-body .tag{font-family:var(--font-mono);font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--seed-primary);display:block;margin-bottom:.25rem}
+  .alt-body h3{font-size:1rem;margin-bottom:.375rem}
+  .alt-body p{font-size:.8125rem;color:var(--muted)}
+
+  footer{padding:2.5rem 0 3.5rem;color:var(--faint);font-size:.8125rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<!-- ============ icon symbols (single source, reused at every size) ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="csPlate" cx="32%" cy="24%" r="92%">
+      <stop offset="0" style="stop-color:var(--ic-night-0)"/>
+      <stop offset=".55" style="stop-color:var(--ic-night-1)"/>
+      <stop offset="1" style="stop-color:var(--ic-night-2)"/>
+    </radialGradient>
+    <linearGradient id="csTopGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-white)" stop-opacity=".10"/>
+      <stop offset=".45" style="stop-color:var(--ic-white)" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="csBottomShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset=".55" style="stop-color:var(--ic-black)" stop-opacity="0"/>
+      <stop offset="1" style="stop-color:var(--ic-black)" stop-opacity=".38"/>
+    </linearGradient>
+    <linearGradient id="csRim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-gold-hi)" stop-opacity=".9"/>
+      <stop offset=".5" style="stop-color:var(--ic-gold)" stop-opacity=".45"/>
+      <stop offset="1" style="stop-color:var(--ic-gold-deep)" stop-opacity=".7"/>
+    </linearGradient>
+    <linearGradient id="csGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-gold-bright)"/>
+      <stop offset=".45" style="stop-color:var(--ic-gold)"/>
+      <stop offset="1" style="stop-color:var(--ic-gold-deep)"/>
+    </linearGradient>
+    <linearGradient id="csGoldBack" x1="0" y1="0" x2=".85" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-gold-hi)"/>
+      <stop offset=".5" style="stop-color:var(--ic-gold)"/>
+      <stop offset="1" style="stop-color:var(--ic-gold-deeper)"/>
+    </linearGradient>
+    <radialGradient id="csFace" cx="34%" cy="24%" r="110%">
+      <stop offset="0" style="stop-color:var(--ic-face-0)"/>
+      <stop offset=".55" style="stop-color:var(--ic-face-1)"/>
+      <stop offset="1" style="stop-color:var(--ic-face-2)"/>
+    </radialGradient>
+    <linearGradient id="csSweep" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" style="stop-color:var(--ic-white)" stop-opacity="0"/>
+      <stop offset=".5" style="stop-color:var(--ic-white)" stop-opacity=".22"/>
+      <stop offset="1" style="stop-color:var(--ic-white)" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="csShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:var(--ic-black)" stop-opacity=".5"/>
+      <stop offset="1" style="stop-color:var(--ic-black)" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="csPurple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-purple-bright)"/>
+      <stop offset="1" style="stop-color:var(--ic-purple)"/>
+    </linearGradient>
+    <clipPath id="csPlateClip"><rect x="64" y="64" width="896" height="896" rx="214"/></clipPath>
+    <clipPath id="csCardClip"><rect x="-205" y="-285" width="410" height="570" rx="36"/></clipPath>
+    <clipPath id="bCardClip"><rect x="-210" y="-292" width="420" height="584" rx="38"/></clipPath>
+    <clipPath id="cCardClip"><rect x="-196" y="-282" width="392" height="564" rx="36"/></clipPath>
+    <clipPath id="dDiscClip"><circle cx="512" cy="500" r="252"/></clipPath>
+
+    <radialGradient id="lpPlate" cx="32%" cy="24%" r="92%">
+      <stop offset="0" style="stop-color:var(--ic-teal-0)"/>
+      <stop offset=".55" style="stop-color:var(--ic-teal-1)"/>
+      <stop offset="1" style="stop-color:var(--ic-teal-2)"/>
+    </radialGradient>
+    <linearGradient id="lpTopGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-white)" stop-opacity=".09"/>
+      <stop offset=".45" style="stop-color:var(--ic-white)" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="lpBottomShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset=".55" style="stop-color:var(--ic-black)" stop-opacity="0"/>
+      <stop offset="1" style="stop-color:var(--ic-black)" stop-opacity=".36"/>
+    </linearGradient>
+    <linearGradient id="lpRim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-gold-hi)" stop-opacity=".75"/>
+      <stop offset=".5" style="stop-color:var(--ic-gold)" stop-opacity=".38"/>
+      <stop offset="1" style="stop-color:var(--ic-gold-deep)" stop-opacity=".6"/>
+    </linearGradient>
+    <linearGradient id="lpPaper" x1="0" y1="0" x2=".6" y2="1">
+      <stop offset="0" style="stop-color:var(--ic-paper-0)"/>
+      <stop offset="1" style="stop-color:var(--ic-paper-1)"/>
+    </linearGradient>
+    <linearGradient id="lpWash" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" style="stop-color:var(--ic-vermilion)"/>
+      <stop offset=".5" style="stop-color:var(--ic-magenta)"/>
+      <stop offset="1" style="stop-color:var(--ic-cobalt)"/>
+    </linearGradient>
+    <radialGradient id="lpShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:var(--ic-black)" stop-opacity=".5"/>
+      <stop offset="1" style="stop-color:var(--ic-black)" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="lpPlateClip"><rect x="64" y="64" width="896" height="896" rx="214"/></clipPath>
+    <clipPath id="lpPaperClip"><rect x="-210" y="-284" width="420" height="568" rx="26"/></clipPath>
+    <clipPath id="lpSweepClip"><path d="M -198 196 C -120 130 -40 55 35 -35 C 95 -110 150 -175 188 -232 L 226 -198 C 188 -140 135 -70 75 5 C -5 105 -85 178 -150 248 Z"/></clipPath>
+
+    <linearGradient id="skyWarm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky-warm-0)"/><stop offset="1" style="stop-color:var(--ic-sky-warm-1)"/></linearGradient>
+    <linearGradient id="skyCool" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky-cool-0)"/><stop offset="1" style="stop-color:var(--ic-sky-cool-1)"/></linearGradient>
+    <linearGradient id="skyNeu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky-neu-0)"/><stop offset="1" style="stop-color:var(--ic-sky-neu-1)"/></linearGradient>
+    <clipPath id="clipFside"><rect x="-72" y="-196" width="144" height="392" rx="16"/></clipPath>
+    <clipPath id="clipFfront"><rect x="-138" y="-208" width="276" height="416" rx="18"/></clipPath>
+    <clipPath id="clipGcard"><rect x="-150" y="-215" width="300" height="430" rx="20"/></clipPath>
+    <clipPath id="stripesA"><rect x="-150" y="-215" width="50" height="430"/><rect x="-50" y="-215" width="50" height="430"/><rect x="50" y="-215" width="50" height="430"/></clipPath>
+    <clipPath id="stripesB"><rect x="-100" y="-215" width="50" height="430"/><rect x="0" y="-215" width="50" height="430"/><rect x="100" y="-215" width="50" height="430"/></clipPath>
+
+    <linearGradient id="hSky1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky1a)"/><stop offset="1" style="stop-color:var(--ic-sky1b)"/></linearGradient>
+    <linearGradient id="hSky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky2a)"/><stop offset="1" style="stop-color:var(--ic-sky2b)"/></linearGradient>
+    <linearGradient id="hSky3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-purple)"/><stop offset="1" style="stop-color:var(--ic-sky3b)"/></linearGradient>
+    <linearGradient id="hSky4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky4a)"/><stop offset="1" style="stop-color:var(--ic-sky4b)"/></linearGradient>
+    <linearGradient id="hSky5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky5a)"/><stop offset="1" style="stop-color:var(--ic-sky5b)"/></linearGradient>
+    <linearGradient id="hSky6" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky6a)"/><stop offset="1" style="stop-color:var(--ic-sky6b)"/></linearGradient>
+    <radialGradient id="hPlateI" cx="32%" cy="24%" r="92%"><stop offset="0" style="stop-color:var(--ic-ivory-0)"/><stop offset=".55" style="stop-color:var(--ic-ivory-1)"/><stop offset="1" style="stop-color:var(--ic-ivory-2)"/></radialGradient>
+    <radialGradient id="hPlateP" cx="32%" cy="24%" r="92%"><stop offset="0" style="stop-color:var(--ic-plum-0)"/><stop offset=".55" style="stop-color:var(--ic-plum-1)"/><stop offset="1" style="stop-color:var(--ic-plum-2)"/></radialGradient>
+    <radialGradient id="hPlateW" cx="32%" cy="22%" r="95%"><stop offset="0" style="stop-color:var(--ic-white-plate-0)"/><stop offset=".7" style="stop-color:var(--ic-white-plate-1)"/><stop offset="1" style="stop-color:var(--ic-white-plate-2)"/></radialGradient>
+    <linearGradient id="hRimB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--ic-rim-ivory)" stop-opacity=".9"/><stop offset=".5" style="stop-color:var(--ic-bronze)" stop-opacity=".5"/><stop offset="1" style="stop-color:var(--ic-rim-ivory-2)" stop-opacity=".7"/></linearGradient>
+    <linearGradient id="hGlowI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-white)" stop-opacity=".55"/><stop offset=".45" style="stop-color:var(--ic-white)" stop-opacity="0"/></linearGradient>
+    <linearGradient id="hShadeI" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" style="stop-color:var(--ic-black)" stop-opacity="0"/><stop offset="1" style="stop-color:var(--ic-black)" stop-opacity=".14"/></linearGradient>
+    <radialGradient id="hShadowL" cx="50%" cy="50%" r="50%"><stop offset="0" style="stop-color:var(--ic-black)" stop-opacity=".3"/><stop offset="1" style="stop-color:var(--ic-black)" stop-opacity="0"/></radialGradient>
+    <linearGradient id="hGloss" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--ic-white)" stop-opacity="0"/><stop offset=".5" style="stop-color:var(--ic-white)" stop-opacity=".14"/><stop offset="1" style="stop-color:var(--ic-white)" stop-opacity="0"/></linearGradient>
+    <clipPath id="hCardClip2"><rect x="-210" y="-292" width="420" height="584" rx="38"/></clipPath>
+    <clipPath id="hs1"><rect x="-210" y="-292" width="70" height="584"/></clipPath>
+    <clipPath id="hs2"><rect x="-140" y="-292" width="70" height="584"/></clipPath>
+    <clipPath id="hs3"><rect x="-70" y="-292" width="70" height="584"/></clipPath>
+    <clipPath id="hs4"><rect x="0" y="-292" width="70" height="584"/></clipPath>
+    <clipPath id="hs5"><rect x="70" y="-292" width="70" height="584"/></clipPath>
+    <clipPath id="hs6"><rect x="140" y="-292" width="70" height="584"/></clipPath>
+
+    <linearGradient id="hFigBg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-figbg-0)"/><stop offset=".6" style="stop-color:var(--ic-figbg-1)"/><stop offset="1" style="stop-color:var(--ic-figbg-2)"/></linearGradient>
+    <radialGradient id="hHalo" cx="50%" cy="50%" r="50%"><stop offset="0" style="stop-color:var(--ic-gold-hi)" stop-opacity=".16"/><stop offset="1" style="stop-color:var(--ic-gold-hi)" stop-opacity="0"/></radialGradient>
+
+    <clipPath id="fanCardClip"><rect x="-150" y="-220" width="300" height="440" rx="32"/></clipPath>
+    <linearGradient id="fanSheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--ic-white)" stop-opacity="0"/><stop offset=".5" style="stop-color:var(--ic-white)" stop-opacity=".55"/><stop offset="1" style="stop-color:var(--ic-white)" stop-opacity="0"/></linearGradient>
+    <g id="hCardArt">
+      <!-- waist ring: back arc -->
+      <path d="M 150 512 A 362 104 0 0 1 874 512" fill="none" stroke="url(#csGold)" stroke-width="14" stroke-linecap="round" stroke-opacity="0.5"/>
+      <!-- plum back card -->
+      <g transform="translate(470,506) rotate(-22)"><rect x="-150" y="-220" width="300" height="440" rx="32" style="fill:var(--ic-fan-plum);stroke:var(--ic-bronze)" stroke-width="4" opacity="0.92"/></g>
+      <!-- teal mid card -->
+      <g transform="translate(492,502) rotate(-13)"><rect x="-150" y="-220" width="300" height="440" rx="32" style="fill:var(--ic-fan-teal);stroke:var(--ic-bronze)" stroke-width="4"/></g>
+      <!-- gold front card -->
+      <g transform="translate(516,498) rotate(-4)">
+        <rect x="-150" y="-220" width="300" height="440" rx="32" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+        <g clip-path="url(#fanCardClip)"><g transform="rotate(28)"><rect x="-320" y="-30" width="640" height="60" fill="url(#fanSheen)"/></g></g>
+        <rect x="-132" y="-202" width="264" height="404" rx="24" fill="none" style="stroke:var(--ic-star)" stroke-opacity="0.5" stroke-width="2.5"/>
+      </g>
+      <!-- waist ring: open front arc + leading arrowhead -->
+      <path d="M 150 512 A 362 104 0 0 0 700 602" fill="none" stroke="url(#csGold)" stroke-width="15" stroke-linecap="round" stroke-opacity="0.95"/>
+      <path d="M 744 582 l -58 -2 l 20 52 z" style="fill:var(--ic-gold-deep)" fill-opacity="0.95"/>
+    </g>
+  </defs>
+
+  <symbol id="icCard" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="848" rx="300" ry="40" fill="url(#csShadow)"/>
+    <g transform="translate(376,548) rotate(-15)">
+      <rect x="-183" y="-256" width="366" height="512" rx="30" fill="url(#csGoldBack)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+      <rect x="-160" y="-233" width="320" height="466" rx="22" fill="none" style="stroke:var(--mock-night-0)" stroke-opacity=".5" stroke-width="4"/>
+      <path d="M 0 -40 L 44 4 L 0 48 L -44 4 Z" style="fill:var(--mock-night-0)" fill-opacity=".85"/>
+      <path d="M 0 -180 L 16 -164 L 0 -148 L -16 -164 Z" style="fill:var(--mock-night-0)" fill-opacity=".7"/>
+      <path d="M 0 148 L 16 164 L 0 180 L -16 164 Z" style="fill:var(--mock-night-0)" fill-opacity=".7"/>
+    </g>
+    <g transform="translate(648,548) rotate(11)">
+      <rect x="-183" y="-256" width="366" height="512" rx="30" fill="url(#csGoldBack)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+      <rect x="-160" y="-233" width="320" height="466" rx="22" fill="none" style="stroke:var(--mock-night-0)" stroke-opacity=".5" stroke-width="4"/>
+      <path d="M 0 -40 L 44 4 L 0 48 L -44 4 Z" style="fill:var(--mock-night-0)" fill-opacity=".85"/>
+      <path d="M 0 -180 L 16 -164 L 0 -148 L -16 -164 Z" style="fill:var(--mock-night-0)" fill-opacity=".7"/>
+      <path d="M 0 148 L 16 164 L 0 180 L -16 164 Z" style="fill:var(--mock-night-0)" fill-opacity=".7"/>
+    </g>
+    <g transform="translate(512,512) rotate(-4)">
+      <rect x="-205" y="-285" width="410" height="570" rx="36" fill="url(#csFace)" stroke="url(#csGold)" stroke-width="16"/>
+      <g clip-path="url(#csCardClip)">
+        <rect x="-172" y="-252" width="344" height="504" rx="24" fill="none" style="stroke:var(--ic-gold-deep)" stroke-opacity=".85" stroke-width="3"/>
+        <path d="M -158 -238 L -146 -226 L -158 -214 L -170 -226 Z" fill="url(#csGold)"/>
+        <path d="M 158 -238 L 170 -226 L 158 -214 L 146 -226 Z" fill="url(#csGold)"/>
+        <path d="M -158 214 L -146 226 L -158 238 L -170 226 Z" fill="url(#csGold)"/>
+        <path d="M 158 214 L 170 226 L 158 238 L 146 226 Z" fill="url(#csGold)"/>
+        <circle cx="-120" cy="-160" r="2.4" style="fill:var(--ic-white)" fill-opacity=".35"/>
+        <circle cx="124" cy="-120" r="2" style="fill:var(--ic-gold-hi)" fill-opacity=".4"/>
+        <circle cx="-96" cy="150" r="2" style="fill:var(--ic-white)" fill-opacity=".3"/>
+        <path d="M 0 -158 L 92 -62 L 0 34 L -92 -62 Z" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+        <path d="M -92 -62 L 92 -62" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+        <path d="M 0 -158 L -40 -62 M 0 -158 L 40 -62 M -40 -62 L 0 34 M 40 -62 L 0 34" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".65"/>
+        <path d="M 0 -96 L 26 -62 L 0 -28 L -26 -62 Z" style="fill:var(--ic-purple)"/>
+        <path d="M 0 -96 L 26 -62 L 0 -28 L -26 -62 Z" fill="none" style="stroke:var(--ic-bronze)" stroke-width="3"/>
+        <rect x="-110" y="104" width="220" height="30" rx="15" fill="url(#csGold)"/>
+        <rect x="-68" y="152" width="136" height="14" rx="7" style="fill:var(--ic-gold)" fill-opacity=".72"/>
+        <circle cx="-28" cy="204" r="7" fill="url(#csGold)"/>
+        <circle cx="0" cy="204" r="7" fill="url(#csGold)"/>
+        <circle cx="28" cy="204" r="7" style="fill:var(--ic-purple)"/>
+        <g transform="translate(0,-30) rotate(24)">
+          <rect x="-340" y="-48" width="680" height="96" fill="url(#csSweep)"/>
+        </g>
+      </g>
+    </g>
+  </symbol>
+
+  <symbol id="icLine" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#lpPlate)"/>
+    <g clip-path="url(#lpPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#lpTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#lpBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#lpRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="852" rx="252" ry="36" fill="url(#lpShadow)"/>
+    <g transform="translate(512,510) rotate(-6)">
+      <rect x="-210" y="-284" width="420" height="568" rx="26" fill="url(#lpPaper)"/>
+      <g clip-path="url(#lpPaperClip)">
+        <g fill="none" style="stroke:var(--ic-line)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="-78" cy="-150" r="58"/>
+          <path d="M -182 58 L -95 -108 L -22 8 L 45 -92 L 132 58"/>
+          <path d="M -188 58 L 188 58"/>
+          <path d="M -140 110 L 30 110"/>
+          <path d="M -50 150 L 130 150"/>
+          <path d="M -120 190 L 60 190"/>
+          <path d="M 72 -166 C 80 -178 92 -178 98 -166 C 106 -178 118 -178 126 -166"/>
+        </g>
+        <path d="M -198 196 C -120 130 -40 55 35 -35 C 95 -110 150 -175 188 -232 L 226 -198 C 188 -140 135 -70 75 5 C -5 105 -85 178 -150 248 Z" fill="url(#lpWash)"/>
+        <g clip-path="url(#lpSweepClip)">
+          <circle cx="-78" cy="-150" r="58" style="fill:var(--ic-sun)"/>
+          <path d="M -182 58 L -95 -108 L -22 58 Z" style="fill:var(--ic-cobalt)"/>
+          <path d="M -60 58 L 45 -92 L 150 58 Z" style="fill:var(--ic-vermilion)"/>
+          <rect x="-190" y="58" width="380" height="46" style="fill:var(--ic-gold)"/>
+          <rect x="-190" y="104" width="380" height="130" style="fill:var(--ic-water)" fill-opacity=".85"/>
+          <g fill="none" style="stroke:var(--ic-line)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="-78" cy="-150" r="58"/>
+            <path d="M -182 58 L -95 -108 L -22 8 L 45 -92 L 132 58"/>
+            <path d="M -188 58 L 188 58"/>
+            <path d="M -140 110 L 30 110"/>
+            <path d="M -50 150 L 130 150"/>
+            <path d="M -120 190 L 60 190"/>
+          </g>
+        </g>
+        <path d="M -198 196 C -120 130 -40 55 35 -35 C 95 -110 150 -175 188 -232" fill="none" style="stroke:var(--ic-white)" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="-166" cy="262" r="9" style="fill:var(--ic-vermilion)"/>
+        <circle cx="204" cy="-238" r="7" style="fill:var(--ic-cobalt)"/>
+        <circle cx="176" cy="-212" r="4.5" style="fill:var(--ic-gold)"/>
+        <rect x="-210" y="-284" width="420" height="568" rx="26" fill="none" style="stroke:var(--ic-line)" stroke-opacity=".18" stroke-width="3"/>
+      </g>
+      <rect x="-211.5" y="-285.5" width="423" height="571" rx="27.5" fill="none" style="stroke:var(--ic-gold)" stroke-opacity=".5" stroke-width="3"/>
+    </g>
+  </symbol>
+
+  <symbol id="icCardB" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="852" rx="270" ry="38" fill="url(#csShadow)"/>
+    <g transform="translate(512,506) rotate(-5)">
+      <rect x="-210" y="-292" width="420" height="584" rx="38" fill="url(#csFace)" stroke="url(#csGold)" stroke-width="14"/>
+      <g clip-path="url(#bCardClip)">
+        <g transform="rotate(-32)">
+          <rect x="-460" y="-30" width="920" height="150" fill="url(#csGold)" fill-opacity=".95"/>
+          <rect x="-460" y="130" width="920" height="42" style="fill:var(--ic-gold-hi)" fill-opacity=".8"/>
+          <rect x="-460" y="182" width="920" height="76" style="fill:var(--ic-gold-deep)" fill-opacity=".75"/>
+          <rect x="-460" y="-96" width="920" height="26" style="fill:var(--ic-gold)" fill-opacity=".5"/>
+        </g>
+        <rect x="-104" y="196" width="208" height="30" rx="15" style="fill:var(--ic-night-2)" fill-opacity=".75"/>
+        <rect x="-104" y="196" width="208" height="30" rx="15" fill="none" style="stroke:var(--ic-gold)" stroke-width="4"/>
+        <rect x="-56" y="244" width="112" height="12" rx="6" style="fill:var(--ic-gold-deep)" fill-opacity=".85"/>
+      </g>
+    </g>
+  </symbol>
+
+  <symbol id="icCardC" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="856" rx="280" ry="38" fill="url(#csShadow)"/>
+    <g transform="translate(512,502)">
+      <g fill="none" style="stroke:var(--ic-gold)">
+        <rect x="-352" y="-278" width="120" height="556" rx="20" stroke-width="7" stroke-opacity=".16"/>
+        <rect x="-318" y="-280" width="196" height="560" rx="26" stroke-width="8" stroke-opacity=".3"/>
+        <rect x="128" y="-280" width="204" height="560" rx="26" stroke-width="8" stroke-opacity=".3"/>
+        <rect x="240" y="-278" width="124" height="556" rx="20" stroke-width="7" stroke-opacity=".16"/>
+      </g>
+      <rect x="-318" y="-280" width="196" height="560" rx="26" style="fill:var(--ic-face-1)" fill-opacity=".35"/>
+      <rect x="128" y="-280" width="204" height="560" rx="26" style="fill:var(--ic-face-1)" fill-opacity=".35"/>
+      <rect x="-196" y="-282" width="392" height="564" rx="36" fill="url(#csFace)" stroke="url(#csGold)" stroke-width="14"/>
+      <g clip-path="url(#cCardClip)">
+        <rect x="-164" y="-250" width="328" height="500" rx="24" fill="none" style="stroke:var(--ic-gold-deep)" stroke-opacity=".8" stroke-width="3"/>
+        <path d="M 0 -150 L 76 -74 L 0 2 L -76 -74 Z" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+        <path d="M -76 -74 L 76 -74" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+        <path d="M 0 -150 L -32 -74 M 0 -150 L 32 -74 M -32 -74 L 0 2 M 32 -74 L 0 2" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".6"/>
+        <path d="M 0 -106 L 22 -74 L 0 -42 L -22 -74 Z" style="fill:var(--ic-purple)"/>
+        <rect x="-96" y="86" width="192" height="26" rx="13" fill="url(#csGold)"/>
+        <rect x="-60" y="130" width="120" height="12" rx="6" style="fill:var(--ic-gold)" fill-opacity=".7"/>
+        <g transform="translate(0,-20) rotate(24)">
+          <rect x="-330" y="-46" width="660" height="92" fill="url(#csSweep)"/>
+        </g>
+      </g>
+    </g>
+  </symbol>
+
+  <symbol id="icCardD" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="864" rx="270" ry="36" fill="url(#csShadow)"/>
+    <circle cx="512" cy="500" r="290" fill="url(#csGold)"/>
+    <circle cx="512" cy="500" r="290" fill="none" style="stroke:var(--ic-bronze)" stroke-width="5" stroke-opacity=".7"/>
+    <path d="M 512 178 L 532 200 L 512 222 L 492 200 Z" style="fill:var(--ic-night-1)" fill-opacity=".8"/>
+    <path d="M 512 778 L 532 800 L 512 822 L 492 800 Z" style="fill:var(--ic-night-1)" fill-opacity=".8"/>
+    <path d="M 190 500 L 212 480 L 234 500 L 212 520 Z" style="fill:var(--ic-night-1)" fill-opacity=".8"/>
+    <path d="M 790 500 L 812 480 L 834 500 L 812 520 Z" style="fill:var(--ic-night-1)" fill-opacity=".8"/>
+    <circle cx="512" cy="500" r="252" fill="url(#csFace)"/>
+    <circle cx="512" cy="500" r="252" fill="none" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+    <circle cx="512" cy="500" r="236" fill="none" style="stroke:var(--ic-gold)" stroke-width="3" stroke-opacity=".5"/>
+    <g clip-path="url(#dDiscClip)">
+      <g transform="translate(432,506) rotate(-12)">
+        <rect x="-118" y="-166" width="236" height="332" rx="22" style="fill:var(--ic-face-1);stroke:var(--ic-gold-deep)" stroke-width="6"/>
+        <rect x="-96" y="-144" width="192" height="288" rx="14" fill="none" style="stroke:var(--ic-gold-deep)" stroke-width="3" stroke-opacity=".55"/>
+      </g>
+      <g transform="translate(576,498) rotate(9)">
+        <rect x="-118" y="-166" width="236" height="332" rx="22" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="6"/>
+        <rect x="-96" y="-144" width="192" height="288" rx="14" fill="none" style="stroke:var(--mock-night-0)" stroke-width="3" stroke-opacity=".45"/>
+        <path d="M 0 -96 L 46 -50 L 0 -4 L -46 -50 Z" style="fill:var(--mock-night-0)" fill-opacity=".85"/>
+        <path d="M 0 -62 L 16 -40 L 0 -18 L -16 -40 Z" style="fill:var(--ic-purple)"/>
+        <rect x="-58" y="46" width="116" height="16" rx="8" style="fill:var(--mock-night-0)" fill-opacity=".75"/>
+        <rect x="-36" y="76" width="72" height="10" rx="5" style="fill:var(--mock-night-0)" fill-opacity=".55"/>
+      </g>
+    </g>
+    <path d="M 262 320 A 290 290 0 0 1 448 214" fill="none" style="stroke:var(--ic-white)" stroke-opacity=".4" stroke-width="10" stroke-linecap="round"/>
+  </symbol>
+
+  <clipPath id="eCardClip2"><rect x="-210" y="-290" width="420" height="580" rx="36"/></clipPath>
+  <clipPath id="eStrip2"><rect x="-42" y="-290" width="84" height="580"/></clipPath>
+  <symbol id="icCardE" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="852" rx="272" ry="38" fill="url(#csShadow)"/>
+    <g transform="translate(512,504) rotate(-3)">
+      <rect x="-210" y="-290" width="420" height="580" rx="36" fill="url(#csFace)" stroke="url(#csGold)" stroke-width="14"/>
+      <g clip-path="url(#eCardClip2)">
+        <g stroke="none">
+          <g transform="translate(-168,0)"><g clip-path="url(#eStrip2)"><g transform="translate(-46,0)">
+            <path d="M 0 -160 L 92 -68 L 0 24 L -92 -68 Z" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+            <path d="M -92 -68 L 92 -68" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+            <path d="M 0 -160 L -40 -68 M 0 -160 L 40 -68 M -40 -68 L 0 24 M 40 -68 L 0 24" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".6"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" style="fill:var(--ic-purple)"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" fill="none" style="stroke:var(--ic-bronze)" stroke-width="3"/>
+          </g></g></g>
+          <g transform="translate(-84,0)"><g clip-path="url(#eStrip2)"><g transform="translate(-23,0)">
+            <path d="M 0 -160 L 92 -68 L 0 24 L -92 -68 Z" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+            <path d="M -92 -68 L 92 -68" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+            <path d="M 0 -160 L -40 -68 M 0 -160 L 40 -68 M -40 -68 L 0 24 M 40 -68 L 0 24" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".6"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" style="fill:var(--ic-purple)"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" fill="none" style="stroke:var(--ic-bronze)" stroke-width="3"/>
+          </g></g></g>
+          <g transform="translate(0,0)"><g clip-path="url(#eStrip2)">
+            <path d="M 0 -160 L 92 -68 L 0 24 L -92 -68 Z" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+            <path d="M -92 -68 L 92 -68" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+            <path d="M 0 -160 L -40 -68 M 0 -160 L 40 -68 M -40 -68 L 0 24 M 40 -68 L 0 24" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".6"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" style="fill:var(--ic-purple)"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" fill="none" style="stroke:var(--ic-bronze)" stroke-width="3"/>
+          </g></g>
+          <g transform="translate(84,0)"><g clip-path="url(#eStrip2)"><g transform="translate(23,0)">
+            <path d="M 0 -160 L 92 -68 L 0 24 L -92 -68 Z" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+            <path d="M -92 -68 L 92 -68" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+            <path d="M 0 -160 L -40 -68 M 0 -160 L 40 -68 M -40 -68 L 0 24 M 40 -68 L 0 24" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".6"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" style="fill:var(--ic-purple)"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" fill="none" style="stroke:var(--ic-bronze)" stroke-width="3"/>
+          </g></g></g>
+          <g transform="translate(168,0)"><g clip-path="url(#eStrip2)"><g transform="translate(46,0)">
+            <path d="M 0 -160 L 92 -68 L 0 24 L -92 -68 Z" fill="url(#csGold)" style="stroke:var(--ic-bronze)" stroke-width="5"/>
+            <path d="M -92 -68 L 92 -68" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".8"/>
+            <path d="M 0 -160 L -40 -68 M 0 -160 L 40 -68 M -40 -68 L 0 24 M 40 -68 L 0 24" style="stroke:var(--ic-bronze)" stroke-width="4" stroke-opacity=".6"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" style="fill:var(--ic-purple)"/>
+            <path d="M 0 -110 L 24 -68 L 0 -26 L -24 -68 Z" fill="none" style="stroke:var(--ic-bronze)" stroke-width="3"/>
+          </g></g></g>
+        </g>
+        <g style="stroke:var(--ic-night-2)" stroke-opacity=".5" stroke-width="3">
+          <line x1="-126" y1="-248" x2="-126" y2="248"/>
+          <line x1="-42" y1="-248" x2="-42" y2="248"/>
+          <line x1="42" y1="-248" x2="42" y2="248"/>
+          <line x1="126" y1="-248" x2="126" y2="248"/>
+        </g>
+        <rect x="-96" y="120" width="192" height="26" rx="13" fill="url(#csGold)"/>
+        <rect x="-56" y="162" width="112" height="12" rx="6" style="fill:var(--ic-gold)" fill-opacity=".72"/>
+        <g transform="translate(0,-40) rotate(24)">
+          <rect x="-340" y="-46" width="680" height="92" fill="url(#csSweep)"/>
+        </g>
+      </g>
+    </g>
+  </symbol>
+
+  <symbol id="icCardF" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="858" rx="300" ry="40" fill="url(#csShadow)"/>
+    <g transform="translate(306,516) rotate(-10)">
+      <rect x="-78" y="-202" width="156" height="404" rx="20" style="fill:var(--ic-night-2);stroke:url(#csGold)" stroke-width="9"/>
+      <g clip-path="url(#clipFside)">
+        <rect x="-72" y="-196" width="144" height="392" fill="url(#skyCool)"/>
+        <circle cx="26" cy="-120" r="34" style="fill:var(--ic-moon)"/>
+        <circle cx="42" cy="-130" r="30" fill="url(#skyCool)"/>
+        <circle cx="-40" cy="-60" r="3" style="fill:var(--ic-star)" fill-opacity=".9"/>
+        <circle cx="-18" cy="-150" r="2.5" style="fill:var(--ic-star)" fill-opacity=".8"/>
+        <path d="M -72 120 Q -20 60 30 120 T 120 150 L 120 200 L -72 200 Z" style="fill:var(--ic-hill-cool-1)"/>
+        <path d="M -72 160 Q 10 110 72 160 L 72 200 L -72 200 Z" style="fill:var(--ic-hill-cool-2)"/>
+      </g>
+    </g>
+    <g transform="translate(718,516) rotate(10)">
+      <rect x="-78" y="-202" width="156" height="404" rx="20" style="fill:var(--ic-night-2);stroke:url(#csGold)" stroke-width="9"/>
+      <g clip-path="url(#clipFside)">
+        <rect x="-72" y="-196" width="144" height="392" fill="url(#skyNeu)"/>
+        <circle cx="-30" cy="-130" r="26" style="fill:var(--ic-star)" fill-opacity=".95"/>
+        <path d="M -72 150 L -20 40 L 20 110 L 50 60 L 72 150 Z" style="fill:var(--ic-hill-neu-1)"/>
+        <path d="M -72 200 L -30 110 L 20 200 Z" style="fill:var(--ic-hill-neu-2)"/>
+        <path d="M 0 200 L 44 120 L 72 200 Z" style="fill:var(--ic-hill-neu-3)"/>
+      </g>
+    </g>
+    <g transform="translate(512,506) rotate(-2)">
+      <rect x="-144" y="-214" width="288" height="428" rx="24" style="fill:var(--ic-night-2);stroke:url(#csGold)" stroke-width="13"/>
+      <g clip-path="url(#clipFfront)">
+        <rect x="-138" y="-208" width="276" height="416" fill="url(#skyWarm)"/>
+        <circle cx="0" cy="-70" r="58" style="fill:var(--ic-sun-face)"/>
+        <path d="M -138 90 Q -60 30 10 90 T 160 120 L 160 208 L -138 208 Z" style="fill:var(--ic-hill-warm-1)"/>
+        <path d="M -138 150 Q -40 96 60 150 T 180 170 L 180 208 L -138 208 Z" style="fill:var(--ic-hill-warm-2)"/>
+        <path d="M -138 190 Q 0 150 138 190 L 138 208 L -138 208 Z" style="fill:var(--ic-hill-warm-3)"/>
+      </g>
+      <rect x="-132" y="-202" width="264" height="404" rx="16" fill="none" style="stroke:var(--ic-star)" stroke-opacity=".35" stroke-width="2"/>
+    </g>
+  </symbol>
+
+  <symbol id="icCardG" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="856" rx="270" ry="38" fill="url(#csShadow)"/>
+    <g transform="translate(512,506) rotate(-2)">
+      <rect x="-150" y="-215" width="300" height="430" rx="20" style="fill:var(--ic-night-2);stroke:url(#csGold)" stroke-width="13"/>
+      <g clip-path="url(#clipGcard)">
+        <g clip-path="url(#stripesA)">
+          <rect x="-150" y="-215" width="300" height="430" fill="url(#skyWarm)"/>
+          <circle cx="0" cy="-60" r="66" style="fill:var(--ic-sun-face)"/>
+          <path d="M -150 100 Q -60 40 20 100 T 180 130 L 180 215 L -150 215 Z" style="fill:var(--ic-hill-warm-1)"/>
+          <path d="M -150 160 Q -40 106 70 160 T 190 180 L 190 215 L -150 215 Z" style="fill:var(--ic-hill-warm-2)"/>
+        </g>
+        <g clip-path="url(#stripesB)">
+          <rect x="-150" y="-215" width="300" height="430" fill="url(#skyCool)"/>
+          <circle cx="20" cy="-70" r="44" style="fill:var(--ic-moon)"/>
+          <circle cx="40" cy="-82" r="40" fill="url(#skyCool)"/>
+          <circle cx="-70" cy="-120" r="4" style="fill:var(--ic-star)"/>
+          <circle cx="-96" cy="-40" r="3" style="fill:var(--ic-star)" fill-opacity=".85"/>
+          <path d="M -150 120 Q -50 60 40 120 T 170 150 L 170 215 L -150 215 Z" style="fill:var(--ic-hill-cool-1)"/>
+          <path d="M -150 170 Q -20 120 90 170 T 200 190 L 200 215 L -150 215 Z" style="fill:var(--ic-hill-cool-2)"/>
+        </g>
+        <g style="stroke:var(--ic-night-2)" stroke-opacity=".45" stroke-width="2">
+          <line x1="-100" y1="-215" x2="-100" y2="215"/>
+          <line x1="-50" y1="-215" x2="-50" y2="215"/>
+          <line x1="0" y1="-215" x2="0" y2="215"/>
+          <line x1="50" y1="-215" x2="50" y2="215"/>
+          <line x1="100" y1="-215" x2="100" y2="215"/>
+        </g>
+      </g>
+      <rect x="-142" y="-207" width="284" height="414" rx="14" fill="none" style="stroke:var(--ic-star)" stroke-opacity=".3" stroke-width="2"/>
+    </g>
+  </symbol>
+
+  <symbol id="icCardH" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#hPlateW)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#hGlowI)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#hShadeI)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3.5"/>
+    <ellipse cx="512" cy="858" rx="286" ry="40" fill="url(#hShadowL)"/>
+    <use href="#hCardArt"/>
+  </symbol>
+
+  <symbol id="icCardHDark" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#csPlate)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="856" rx="278" ry="38" fill="url(#csShadow)"/>
+    <use href="#hCardArt"/>
+  </symbol>
+
+  <symbol id="icCardHIvory" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#hPlateI)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#hGlowI)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#hShadeI)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#hRimB)" stroke-width="3"/>
+    <ellipse cx="512" cy="856" rx="278" ry="38" fill="url(#hShadowL)"/>
+    <use href="#hCardArt"/>
+  </symbol>
+
+  <symbol id="icCardHTeal" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#lpPlate)"/>
+    <g clip-path="url(#lpPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#lpTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#lpBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="856" rx="278" ry="38" fill="url(#lpShadow)"/>
+    <use href="#hCardArt"/>
+  </symbol>
+
+  <symbol id="icCardHPlum" viewBox="0 0 1024 1024">
+    <rect x="64" y="64" width="896" height="896" rx="214" style="rx:var(--icon-radius)" fill="url(#hPlateP)"/>
+    <g clip-path="url(#csPlateClip)">
+      <rect x="64" y="64" width="896" height="896" fill="url(#csTopGlow)"/>
+      <rect x="64" y="64" width="896" height="896" fill="url(#csBottomShade)"/>
+    </g>
+    <rect x="65.5" y="65.5" width="893" height="893" rx="212.5" style="rx:calc(var(--icon-radius) - 1.5px)" fill="none" stroke="url(#csRim)" stroke-width="3"/>
+    <ellipse cx="512" cy="856" rx="278" ry="38" fill="url(#csShadow)"/>
+    <use href="#hCardArt"/>
+  </symbol>
+</svg>
+
+<header class="hero" data-component="page-header">
+  <div class="wrap">
+    <p class="eyebrow">Program Icon Set · 2026-09 · Rev 3</p>
+    <h1>Card-Studio 与 Lineart_Painter 的程序图标</h1>
+    <p class="lead" style="margin-top:1rem">一枚是三张卡叠成扇、绕腰旋转的香槟金闪卡，一枚是正被笔刷上色的山水线稿——但共用同一块圆角底板、同一个光源、同一条香槟金描边，成对出现时是一家人。</p>
+    <div class="hero-meta">
+      <div><strong>目标平台</strong>Windows 桌面 · 任务栏 / 资源管理器 / 快捷方式</div>
+      <div><strong>尺寸覆盖</strong>16 – 1024 px · ICO 含 7 层位图</div>
+      <div><strong>质感方向</strong>3D 立体 · 深底渐变 · 金属描边</div>
+    </div>
+  </div>
+</header>
+
+<main>
+<section data-component="icon-hero">
+  <div class="wrap">
+    <p class="eyebrow">01 — 主视觉</p>
+    <div class="icon-grid">
+      <figure class="icon-card">
+        <div class="icon-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="Card-Studio 程序图标"><use href="#icCardH"/></svg></div>
+        <figcaption class="icon-body">
+          <span class="name">Card-Studio</span><span class="name-cn">闪卡工坊</span>
+          <p class="concept"><strong>三张卡叠成扇</strong>：香槟金卡居中做主角，梅紫、墨青各斜一张在两侧——一眼是"一叠卡 / 多角度换图"，不是电话卡、不是书。金卡带斜向镭射光与收藏卡内框，一道开口腰环 + 箭头点出"转动换面"，白底配香槟金描边。</p>
+          <div class="chips">
+            <span class="chip"><i style="background:var(--ic-night-1)"></i>#171126</span>
+            <span class="chip"><i style="background:var(--ic-gold)"></i>#C9A876</span>
+            <span class="chip"><i style="background:var(--ic-gold-hi)"></i>#E8D0A8</span>
+            <span class="chip"><i style="background:var(--ic-purple)"></i>#9E7FD9</span>
+          </div>
+        </figcaption>
+      </figure>
+      <figure class="icon-card">
+        <div class="icon-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="Lineart Painter 程序图标"><use href="#icLine"/></svg></div>
+        <figcaption class="icon-body">
+          <span class="name">Lineart_Painter</span><span class="name-cn">线稿画师</span>
+          <p class="concept">一张纸上的山水线稿，被一道朱红到钴蓝的笔刷斜斜扫过——笔锋所到之处，线稿变成平涂固有色，这正是程序每天在做的事。深墨青底板与闪卡拉开色温差，形制仍属同一家族。</p>
+          <div class="chips">
+            <span class="chip"><i style="background:var(--ic-teal-1)"></i>#14202A</span>
+            <span class="chip"><i style="background:var(--ic-paper-0)"></i>#F8F3E7</span>
+            <span class="chip"><i style="background:var(--ic-vermilion)"></i>#E0523C</span>
+            <span class="chip"><i style="background:var(--ic-cobalt)"></i>#2E5FD0</span>
+          </div>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section data-component="size-ladder">
+  <div class="wrap">
+    <p class="eyebrow">02 — 尺寸阶梯</p>
+    <h2>小尺寸可读性</h2>
+    <p class="section-note">任务栏 24–32px、托盘 16px 是程序图标的生死线。两枚图标都把主体轮廓做大、细节留在 128px 以上：闪卡认「金框卡 + 六色光栅条」，线稿认「白纸 + 一道彩色笔刷」。</p>
+    <div class="ladder-label"><span class="dot"></span><h3>Card-Studio</h3><span class="mono">256 → 16 px</span></div>
+    <div class="ladder">
+      <div class="step"><svg width="256" height="256" viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>256</span></div>
+      <div class="step"><svg width="128" height="128" viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>128</span></div>
+      <div class="step"><svg width="64" height="64" viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>64</span></div>
+      <div class="step"><svg width="48" height="48" viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>48</span></div>
+      <div class="step"><svg width="32" height="32" viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>32</span></div>
+      <div class="step"><svg width="24" height="24" viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>24</span></div>
+      <div class="step"><svg width="16" height="16" viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>16</span></div>
+    </div>
+    <div class="ladder-label"><span class="dot" style="background:var(--seed-accent)"></span><h3>Lineart_Painter</h3><span class="mono">256 → 16 px</span></div>
+    <div class="ladder">
+      <div class="step"><svg width="256" height="256" viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>256</span></div>
+      <div class="step"><svg width="128" height="128" viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>128</span></div>
+      <div class="step"><svg width="64" height="64" viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>64</span></div>
+      <div class="step"><svg width="48" height="48" viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>48</span></div>
+      <div class="step"><svg width="32" height="32" viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>32</span></div>
+      <div class="step"><svg width="24" height="24" viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>24</span></div>
+      <div class="step"><svg width="16" height="16" viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>16</span></div>
+    </div>
+  </div>
+</section>
+
+<section data-component="context-preview">
+  <div class="wrap">
+    <p class="eyebrow">03 — 环境模拟</p>
+    <h2>放回去看看</h2>
+    <p class="section-note">桌面壁纸与任务栏上的真实观感：深色壁纸下两枚图标的底板都沉得下去，浅色壁纸下靠投影与金边保持轮廓。</p>
+    <div class="mock wall-night">
+      <div class="desktop">
+        <div class="dicon"><svg viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>Card Studio</span></div>
+        <div class="dicon"><svg viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>Lineart Painter</span></div>
+      </div>
+      <div class="taskbar dark">
+        <div class="titem"><svg viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>闪卡工坊</span></div>
+        <div class="titem"><svg viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>线稿画师</span></div>
+      </div>
+    </div>
+    <p class="mock-caption">深色主题 · 壁纸 mock-night-0 → mock-night-1</p>
+    <div class="mock wall-paper">
+      <div class="desktop">
+        <div class="dicon"><svg viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>Card Studio</span></div>
+        <div class="dicon"><svg viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>Lineart Painter</span></div>
+      </div>
+      <div class="taskbar light">
+        <div class="titem"><svg viewBox="0 0 1024 1024"><use href="#icCardH"/></svg><span>闪卡工坊</span></div>
+        <div class="titem"><svg viewBox="0 0 1024 1024"><use href="#icLine"/></svg><span>线稿画师</span></div>
+      </div>
+    </div>
+    <p class="mock-caption">浅色主题 · 壁纸 mock-paper-0 → mock-paper-1</p>
+  </div>
+</section>
+
+<section data-component="family-rules">
+  <div class="wrap">
+    <p class="eyebrow">04 — 家族规则</p>
+    <h2>成对而不撞款的四条纪律</h2>
+    <p class="section-note">「各表其主 + 家族统一」：形制、光源、描边、投影四条全部共用；色温（紫夜 / 墨青）与主体（多角度换图卡 / 上色纸）各自保留。</p>
+    <div class="rules">
+      <div class="rule">
+        <svg viewBox="0 0 200 88" aria-hidden="true">
+          <rect x="26" y="4" width="80" height="80" rx="19" fill="url(#csPlate)"/>
+          <rect x="96" y="4" width="80" height="80" rx="19" fill="url(#lpPlate)"/>
+        </svg>
+        <h3>同一底板形制</h3>
+        <p>896×896 画布内圆角方形，圆角 214（约 21%），外圈全透明。</p>
+        <span class="mono">plate 87.5% · rx 214/1024</span>
+      </div>
+      <div class="rule">
+        <svg viewBox="0 0 200 88" aria-hidden="true">
+          <rect x="60" y="4" width="80" height="80" rx="19" fill="url(#csPlate)"/>
+          <rect x="60" y="4" width="80" height="80" rx="19" fill="url(#csTopGlow)"/>
+          <circle cx="84" cy="26" r="7" fill="url(#csPurple)"/>
+          <line x1="84" y1="26" x2="116" y2="58" stroke="url(#csGold)" stroke-width="3" stroke-dasharray="5 5"/>
+        </svg>
+        <h3>左上主光源</h3>
+        <p>径向高光圆心固定在 32% / 24%，底部统一压一层暗部渐变。</p>
+        <span class="mono">key light 32% · 24%</span>
+      </div>
+      <div class="rule">
+        <svg viewBox="0 0 200 88" aria-hidden="true">
+          <rect x="60" y="4" width="80" height="80" rx="19" fill="url(#lpPlate)"/>
+          <rect x="61.5" y="5.5" width="77" height="77" rx="17.5" fill="none" stroke="url(#lpRim)" stroke-width="3"/>
+        </svg>
+        <h3>香槟金描边</h3>
+        <p>两枚共用同一支金渐变描边（3px），线稿画师侧也用它收边。</p>
+        <span class="mono">rim ic-gold-hi → ic-gold-deep</span>
+      </div>
+      <div class="rule">
+        <svg viewBox="0 0 200 88" aria-hidden="true">
+          <rect x="60" y="4" width="80" height="66" rx="19" fill="url(#csFace)"/>
+          <ellipse cx="100" cy="78" rx="52" ry="8" fill="url(#csShadow)"/>
+        </svg>
+        <h3>径向渐变落地影</h3>
+        <p>主体下方统一放一枚椭圆地影，不使用滤镜，保证小尺寸边缘干净。</p>
+        <span class="mono">shadow = radial-gradient ellipse</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section data-component="plate-colors">
+  <div class="wrap">
+    <p class="eyebrow">05 — 底板配色</p>
+    <h2>叠扇金卡，四种底</h2>
+    <p class="section-note">卡片本体（三张卡叠扇 + 开口腰环）完全一致，只换最外层底板。按你的要求，主用白色底；另留暗夜紫黑、墨青、暮紫三种备选。白底最干净、浅色桌面里金卡最跳；深色底则更沉稳。</p>
+    <div class="alt-grid four">
+      <figure class="alt">
+        <div class="alt-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="Card-Studio 底板：白色"><use href="#icCardH"/></svg></div>
+        <figcaption class="alt-body">
+          <span class="tag">P1 · 白色（默认）</span>
+          <h3>最外层白底</h3>
+          <p>纯白径向底 + 香槟金描边 + 暖投影。黄卡在白底上对比最强，浅色桌面尤其干净。</p>
+        </figcaption>
+      </figure>
+      <figure class="alt">
+        <div class="alt-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="Card-Studio 底板：暗夜紫黑"><use href="#icCardHDark"/></svg></div>
+        <figcaption class="alt-body">
+          <span class="tag">P2 · 暗夜紫黑</span>
+          <h3>与软件暗色主题同源</h3>
+          <p>ic-night-0 → ic-night-2 径向底。深色任务栏里更沉稳，黄卡像被点亮。</p>
+        </figcaption>
+      </figure>
+      <figure class="alt">
+        <div class="alt-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="Card-Studio 底板：墨青"><use href="#icCardHTeal"/></svg></div>
+        <figcaption class="alt-body">
+          <span class="tag">P3 · 墨青</span>
+          <h3>与线稿画师同色系</h3>
+          <p>用足两枚图标的家族色，成对像同一套件；但两软件并排时区分度下降。</p>
+        </figcaption>
+      </figure>
+      <figure class="alt">
+        <div class="alt-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="Card-Studio 底板：暮紫"><use href="#icCardHPlum"/></svg></div>
+        <figcaption class="alt-body">
+          <span class="tag">P4 · 暮紫</span>
+          <h3>黄昏氛围</h3>
+          <p>ic-plum-0 → ic-plum-2 梅子底，金框黄卡在暖紫上更亮，气质更"收藏品"。</p>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section data-component="card-alternates">
+  <div class="wrap">
+    <p class="eyebrow">06 — 此前交付的其余方案</p>
+    <h2>F / G / B：完整包仍在 exports</h2>
+    <p class="section-note">融合前的三个方向都保留着完整图标包（各 9 档 PNG + 7 层 ICO），随时可换主：F 旋转三帧、G 双图光栅、B 全息斜纹。</p>
+    <div class="alt-grid">
+      <figure class="alt">
+        <div class="alt-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="方案 F 旋转卡组"><use href="#icCardF"/></svg></div>
+        <figcaption class="alt-body">
+          <span class="tag">F · Rotation</span>
+          <h3>旋转卡组</h3>
+          <p>三帧不同照片沿旋转方向叠出。完整包：exports/card-studio-f。</p>
+        </figcaption>
+      </figure>
+      <figure class="alt">
+        <div class="alt-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="方案 G 光栅换图"><use href="#icCardG"/></svg></div>
+        <figcaption class="alt-body">
+          <span class="tag">G · Lenticular</span>
+          <h3>光栅换图</h3>
+          <p>五条光栅交替显影两张图片。完整包：exports/card-studio-g。</p>
+        </figcaption>
+      </figure>
+      <figure class="alt">
+        <div class="alt-stage"><svg viewBox="0 0 1024 1024" role="img" aria-label="方案 B 全息斜纹"><use href="#icCardB"/></svg></div>
+        <figcaption class="alt-body">
+          <span class="tag">B · Holo Foil</span>
+          <h3>全息斜纹</h3>
+          <p>单卡直面 + 烫金斜纹闪膜。完整包：exports/card-studio-b。</p>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section data-component="delivery">
+  <div class="wrap">
+    <p class="eyebrow">07 — 交付与落地</p>
+    <h2>文件都在，替换即生效</h2>
+    <p class="section-note">SVG 母版经无头 Edge 栅格化，产出 9 档 PNG 与含 7 层的 ICO；对两个项目目录的所有写入都会先备份原文件。</p>
+    <div class="delivery">
+      <div class="filelist">
+        <h3>exports / 每套包含</h3>
+        <ul>
+          <li><span class="path">icon-1024 / 512 / 256 / 128 / 64 / 48 / 32 / 24 / 16 .png</span><span class="size">RGBA 透明底</span></li>
+          <li><span class="path">icon.ico</span><span class="size">16–256 共 7 层</span></li>
+          <li><span class="path">card-studio-f（主）· card-studio-b · card-studio-g</span><span class="size">三套完整包</span></li>
+          <li><span class="path">card-studio-icon-f/b/g.svg · lineart-painter-icon.svg</span><span class="size">母版矢量</span></li>
+        </ul>
+      </div>
+      <div class="steps">
+        <div class="stepcard">
+          <span class="num">Step 1 · Card-Studio</span>
+          <p><strong>替换 src-tauri/icons/</strong>：按原尺寸覆盖 32x32.png、128x128.png、128x128@2x.png、icon.png、icon.ico 与 Square*Logo 系列，<code class="mono">tauri build</code> 后桌面与任务栏即换新。</p>
+        </div>
+        <div class="stepcard">
+          <span class="num">Step 2 · Lineart_Painter ✓ 已应用</span>
+          <p><strong>favicon 已接入</strong>：webui 新增 /favicon.ico 路由与页面引用，浏览器标签页即刻显示新图标；桌面已创建带新图标的「线稿画师」快捷方式。日后 PyInstaller 打包加 <code class="mono">--icon assets/icons/lineart-icon.ico</code> 即可。</p>
+        </div>
+        <div class="stepcard">
+          <span class="num">Step 3 · 备份</span>
+          <p><strong>原件先备份</strong>：Card-Studio 现有 Tauri 图标在替换前完整备份到工作区，随时可回退。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="wrap">
+  <span>程序图标设计 · Card-Studio × Lineart_Painter · 高保真交付稿 Rev 3</span>
+  <span class="mono">SVG → Edge headless → PNG×9 + ICO×7</span>
+</footer>
+
+</body>
+</html>
