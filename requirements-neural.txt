@@ -1,0 +1,21 @@
+# Lineart Painter — 可选神经功能依赖
+# 覆盖：Anime2Sketch 神经线稿、ControlNet + Stable Diffusion 神经上色、
+#       DDColor 黑白照片上色、AnimeGANv2 风格化、AnimateDiff 视频一致性。
+#
+# 请先安装主程序依赖：python -m pip install -r requirements.txt
+# 再安装本清单：python -m pip install -r requirements-neural.txt
+#
+# PyTorch 建议按本机 CUDA 版本从官方索引安装（可加速并避免装成 CPU 版），例如：
+#   python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+# 若直接从 PyPI 安装本清单，将拿到默认（CPU）wheel，功能可用但无 GPU 加速。
+
+torch>=2.0,<3.0
+torchvision>=0.15,<0.23
+diffusers>=0.27,<0.32
+transformers>=4.36,<5.0
+accelerate>=0.26,<1.0
+safetensors>=0.4,<0.6
+onnxruntime>=1.16,<2.0
+Pillow>=10.0,<12.0
+timm>=0.9,<1.1
+kornia>=0.7,<0.8

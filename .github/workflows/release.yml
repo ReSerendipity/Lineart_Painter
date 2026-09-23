@@ -4,9 +4,14 @@ on:
   push:
     tags:
       - "v*"
+  # 手动触发：只跑回归门禁与打包，不发布 release（见 Publish release 的 if）。
+  workflow_dispatch:
 
 permissions:
   contents: write
+  # upload-artifact 需要 actions: write；上面的 permissions 会把未声明的
+  # scope 收窄为 none，缺失会导致失败现场上传被拒。
+  actions: write
 
 jobs:
   windows:
@@ -24,6 +29,46 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install numpy opencv-python-headless pyinstaller
+
+      # 发布前置门禁：跑项目自带的回归测试，退出码非 0 直接中断 job，
+      # 后面的打包 / 发布步骤不会执行。依赖复用上方 Install dependencies
+      # 已装好的 numpy + opencv-python-headless（无 GUI 调用，headless 可用）。
+      #
+      # 为什么不是全量、也不是完整 --fast：GitHub runner 上没有 torch /
+      # onnxruntime，也没有任何模型权重（models/、weights/ 不入库），且
+      # test_video.mp4 未纳入版本库，所以只跑 --fast 中零权重可运行的最小子集。
+      #   已覆盖：经典管线 (XDoG+KMeans)、手绘线稿直接填色 (--input-lineart)
+      #   未覆盖 —— --fast 仍包含、但因缺权重/依赖被本门禁排除：
+      #     DDColor 照片上色（需 torch + models/ddcolor/ddcolor_paper_tiny.pth 210MB）
+      #     AnimeGANv2 风格化（需 onnxruntime + models/animegan/face_paint_512_v2_0.onnx 8MB）
+      #   未覆盖 —— 仅全量模式包含（需 ~10GB 权重，CI 无法运行）：
+      #     神经线稿 Anime2Sketch、神经上色 ControlNet+SD1.5、神经双引擎、
+      #     img2img 原图混合、视频经典管线、视频 DDColor/AnimeGAN 扩展、AnimateDiff
+      #   以上未覆盖项需在本地 `python smoke_test.py` 全量回归中另行验证。
+      - name: Regression gate (smoke_test.py)
+        shell: pwsh
+        timeout-minutes: 5
+        env:
+          # smoke_test 输出中文 PASS/FAIL，强制 UTF-8 避免编码报错
+          PYTHONIOENCODING: utf-8
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          python smoke_test.py --fast --only "经典管线,线稿直填"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::smoke_test.py 回归门禁失败（退出码 $LASTEXITCODE），已阻断发布"
+            # 失败时 smoke_out/ 保留现场（脚本只在启动时清空），列出便于定位
+            Get-ChildItem -Recurse smoke_out | ForEach-Object { $_.FullName }
+          }
+          exit $LASTEXITCODE
+
+      - name: Upload smoke_out evidence (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-out-${{ github.run_id }}-${{ github.run_attempt }}
+          path: smoke_out/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Build executable (onedir)
         shell: pwsh
@@ -50,7 +95,10 @@ jobs:
       - name: Package dist folder
         run: Compress-Archive -Path dist -DestinationPath lineart_painter-windows.zip
 
+      # 仅标签发布才创建 release；手动 workflow_dispatch 触发时到此为止，
+      # 用于验证回归门禁本身而不会误发版。
       - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

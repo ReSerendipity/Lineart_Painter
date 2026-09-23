@@ -18,25 +18,27 @@
 
 ## 快速开始
 
-### 1. 安装基础依赖
+### 1. 安装依赖
 
-建议使用 Python 3.10 或更高版本：
+建议使用 Python 3.10 或更高版本。主程序（Web 界面与经典 XDoG + K-Means 管线）的全部运行依赖已整理进 `requirements.txt`，一次性安装即可：
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install --upgrade pip
-python -m pip install numpy opencv-python
+python -m pip install -r requirements.txt
 ```
 
-神经功能需要 PyTorch、Diffusers、Transformers、ONNX Runtime（按需）：
+如需使用可选的神经功能（Anime2Sketch 神经线稿、ControlNet 神经上色、DDColor 照片上色、AnimeGANv2 风格化、AnimateDiff 视频一致性），再安装分层清单 `requirements-neural.txt`。其中 PyTorch 建议先按本机 CUDA 版本从官方索引安装以获得 GPU 加速：
 
 ```bash
+# 可选：先装 GPU 版 PyTorch（示例为 CUDA 12.8）
 python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-python -m pip install diffusers transformers accelerate safetensors huggingface_hub onnxruntime
+# 再装其余神经依赖（diffusers / transformers / onnxruntime 等）
+python -m pip install -r requirements-neural.txt
 ```
 
-视频处理需要 OpenCV 的视频编解码支持；H.264 转码由 `imageio-ffmpeg` 提供（`pip install imageio-ffmpeg`）。
+视频处理与 H.264 转码所需的 `imageio-ffmpeg`、模型下载所需的 `huggingface_hub` 均已包含在 `requirements.txt` 中。
 
 ### 2. 下载模型权重（一键脚本）
 

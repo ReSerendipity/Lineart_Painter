@@ -1,3 +1,12 @@
-# 仅模型下载脚本 setup_models.py 所需依赖
-# 主程序（webui.py）的完整运行依赖请见 README
-huggingface_hub
+# Lineart Painter — 主程序运行依赖（webui.py / lineart_painter.py 经典 XDoG + K-Means 管线）
+# 一次性安装：python -m pip install -r requirements.txt
+# 可选神经功能（Anime2Sketch / ControlNet 上色 / DDColor / AnimeGAN / AnimateDiff）
+# 请在此基础上再安装：python -m pip install -r requirements-neural.txt
+#
+# 版本上界依据当前已验证可用的运行环境确定，避免上游大版本破坏 API：
+#   numpy 2.4.x / opencv 5.0.x / imageio-ffmpeg 0.6.x / huggingface_hub 1.30.x
+
+numpy>=1.24,<3.0
+opencv-python>=4.8,<6.0
+imageio-ffmpeg>=0.4.9,<0.7
+huggingface_hub>=0.20,<2.0

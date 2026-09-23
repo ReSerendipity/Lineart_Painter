@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 import traceback
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote
 
@@ -29,6 +30,12 @@ PORT = 8765
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(WEB_OUT, exist_ok=True)
 os.makedirs(CONFIG_DIR, exist_ok=True)
+
+# 持久日志（写入已被 .gitignore 覆盖的 webout/ 下，不新增顶层目录）：
+# 每次作业一行 JSON 的关联日志，以及恢复的 HTTP 访问日志，
+# 使无在线轮询客户端时仍可事后重建“触发/决策边界/失败/结果”。
+JOB_LOG = os.path.join(WEB_OUT, "webui_jobs.jsonl")
+ACCESS_LOG = os.path.join(WEB_OUT, "webui_access.log")
 
 STAGE_LABELS = {
     "01_lineart": "01 线稿",
@@ -47,7 +54,7 @@ STAGE_LABELS = {
 
 # ---------------- 运行状态 ----------------
 _state = {"state": "idle", "message": "", "elapsed": 0.0, "images": [],
-          "videos": [], "out_dir": None, "error": None, "file": ""}
+          "videos": [], "out_dir": None, "error": None, "file": "", "job": None}
 _lock = threading.Lock()
 
 
@@ -56,11 +63,65 @@ def _set_state(**kw):
         _state.update(kw)
 
 
-def _run_job(src, out_dir, params):
+def _now():
+    return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def _append_line(path, text):
+    """Best-effort 追加一行；日志写入失败绝不能打断请求/作业路径。"""
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(text.rstrip("\n") + "\n")
+    except Exception:
+        pass
+
+
+def _log_job(job_id, event, **fields):
+    """为一次作业写入带关联标识(job)的持久事件，供事后追溯。"""
+    rec = {"ts": _now(), "job": job_id, "event": event}
+    rec.update(fields)
+    _append_line(JOB_LOG, json.dumps(rec, ensure_ascii=False))
+
+
+def _status_payload():
+    """返回 /api/status 的作业状态快照（含 job 关联标识），为浅拷贝。"""
+    with _lock:
+        return dict(_state)
+
+
+def _parse_params(qs):
+    """把 /api/run 的 query 参数解析为类型化 dict。
+
+    返回 (params, error)。数值字段非法时返回可读错误而非抛出，
+    以便服务留下可定位的失败证据并向客户端回传结构化错误。
+    """
+    params = {k: (v[0] if v else "") for k, v in qs.items()}
+    try:
+        params["lines"] = float(params.get("lines", -0.10) or -0.10)
+        params["k"] = int(params.get("k", 10) or 10)
+        params["maxside"] = 1280
+        params["neural_lineart"] = params.get("neural_lineart") == "True"
+        params["neural_color"] = params.get("neural_color") == "True"
+        params["seed"] = int(params["seed"]) if params.get("seed") else None
+        params["strength"] = (float(params["strength"])
+                              if params.get("strength") else None)
+        params["gen_size"] = int(params.get("gen_size", 768) or 768)
+        for flag in ("input_lineart", "photo_color", "anime_gan",
+                     "animate_diff", "low_vram", "protect_text"):
+            params[flag] = params.get(flag) == "True"
+        params["reference_color"] = params.get("reference_color") or None
+        params["color_hint"] = params.get("color_hint") or None
+    except (ValueError, TypeError) as e:
+        return params, "参数解析失败: %s" % e
+    return params, None
+
+
+def _run_job(src, out_dir, params, job_id=None):
     t0 = time.time()
     fname = os.path.basename(src)
     try:
         _set_state(state="running", message="处理中…", error=None, file=fname)
+        _log_job(job_id, "running", file=fname)
         ext = os.path.splitext(src)[1].lower()
         if ext in lp.VIDEO_EXTS:
             lp.process_video(
@@ -110,9 +171,17 @@ def _run_job(src, out_dir, params):
         _set_state(state="done", message="完成",
                    elapsed=time.time() - t0, images=images, videos=videos,
                    out_dir=out_dir)
+        _log_job(job_id, "done", file=fname,
+                 elapsed=round(time.time() - t0, 1), out_dir=out_dir,
+                 images=len(images), videos=len(videos))
     except Exception:
-        _set_state(state="error", error=traceback.format_exc(),
+        tb = traceback.format_exc()
+        _set_state(state="error", error=tb,
                    elapsed=time.time() - t0, message="处理失败")
+        # 失败证据：完整 traceback 压成单行 JSONL，供无轮询客户端时事后定位
+        _log_job(job_id, "error", file=fname,
+                 elapsed=round(time.time() - t0, 1),
+                 error=" | ".join(tb.strip().splitlines()))
 
 
 # ---------------- HTTP 处理 ----------------
@@ -488,8 +557,18 @@ PAGE = """<!DOCTYPE html>
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):
-        pass
+    def log_message(self, fmt, *args):
+        # 恢复访问日志：不再静默丢弃，改为持久写入 webout 下的访问日志，
+        # 使无在线客户端时仍可事后追溯每一次请求。
+        try:
+            peer = self.address_string()
+        except Exception:
+            peer = "-"
+        try:
+            _append_line(ACCESS_LOG, "%s - - [%s] %s" % (
+                peer, time.strftime("%Y-%m-%d %H:%M:%S"), fmt % args))
+        except Exception:
+            pass
 
     def _send(self, code, body, ctype="application/json"):
         data = body.encode("utf-8") if isinstance(body, str) else body
@@ -511,9 +590,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._send(404, json.dumps({"error": "not found"}))
         elif self.path.startswith("/api/status"):
-            with _lock:
-                st = dict(_state)
-            self._send(200, json.dumps(st))
+            self._send(200, json.dumps(_status_payload()))
         elif self.path.startswith("/api/configs"):
             configs = []
             if os.path.isdir(CONFIG_DIR):
@@ -595,43 +672,41 @@ class Handler(BaseHTTPRequestHandler):
                 cfg = json.load(f)
             self._send(200, json.dumps({"ok": True, "params": cfg.get("params", {})}))
         elif self.path.startswith("/api/run"):
-            qs = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            job_id = time.strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
+            query = self.path.split("?", 1)[1] if "?" in self.path else ""
+            qs = parse_qs(query)
             fname = unquote(self.headers.get("X-Filename", "upload.png"))
             length = int(self.headers.get("Content-Length", 0))
             data = self.rfile.read(length)
+            # 触发证据：请求进入处理路径即落盘（含关联标识与参数摘要）
+            _log_job(job_id, "trigger", file=fname, bytes=len(data), query=query)
+            params, err = _parse_params(qs)
+            if err:
+                # 决策边界：参数非法 -> 结构化拒绝并落盘，不再抛断连接
+                _log_job(job_id, "reject", file=fname, reason=err, http=400)
+                self._send(400, json.dumps({"ok": False, "error": err}))
+                return
             src = os.path.join(UPLOAD_DIR, os.path.basename(fname))
             with open(src, "wb") as f:
                 f.write(data)
             out_dir = os.path.join(
                 WEB_OUT, time.strftime("%Y%m%d_%H%M%S_") + os.path.splitext(os.path.basename(fname))[0])
             os.makedirs(out_dir, exist_ok=True)
-            params = {k: (v[0] if v else "") for k, v in qs.items()}
-            params["lines"] = float(params.get("lines", -0.10) or -0.10)
-            params["k"] = int(params.get("k", 10) or 10)
-            params["maxside"] = 1280
-            params["neural_lineart"] = params.get("neural_lineart") == "True"
-            params["neural_color"] = params.get("neural_color") == "True"
-            params["seed"] = (int(params["seed"])
-                              if params.get("seed") else None)
-            params["strength"] = (float(params["strength"])
-                                  if params.get("strength") else None)
-            params["gen_size"] = int(params.get("gen_size", 768) or 768)
-            for flag in ("input_lineart", "photo_color", "anime_gan",
-                         "animate_diff", "low_vram", "protect_text"):
-                params[flag] = params.get(flag) == "True"
-            params["reference_color"] = params.get("reference_color") or None
-            params["color_hint"] = params.get("color_hint") or None
             if params.get("low_vram"):
                 from vram_manager import vram
                 vram.low_vram = True
             if _state["state"] == "running":
+                # 决策边界：并发拒绝
+                _log_job(job_id, "reject", file=fname,
+                         reason="已有任务在运行", http=429)
                 self._send(429, json.dumps(
                     {"ok": False, "error": "已有任务在运行"}))
                 return
-            _set_state(state="idle")
+            _set_state(state="idle", job=job_id)
+            _log_job(job_id, "start", file=fname, out_dir=out_dir)
             threading.Thread(target=_run_job,
-                             args=(src, out_dir, params), daemon=True).start()
-            self._send(200, json.dumps({"ok": True}))
+                             args=(src, out_dir, params, job_id), daemon=True).start()
+            self._send(200, json.dumps({"ok": True, "job": job_id}))
         else:
             self._send(404, json.dumps({"error": "not found"}))
 

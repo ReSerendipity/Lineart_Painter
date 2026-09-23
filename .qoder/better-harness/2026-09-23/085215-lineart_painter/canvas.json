@@ -1,0 +1,533 @@
+{
+  "schemaVersion": 2,
+  "summary": {
+    "evidenceMode": "session-rich",
+    "evidenceBoundary": {
+      "manifest": {
+        "schemaVersion": 2,
+        "sourceFingerprint": "8c6625e8a62f5c71",
+        "adapterVersion": "qoder-task-loop-source-v2",
+        "platform": "qoder",
+        "selection": {
+          "strategy": "all-eligible",
+          "eligibleCount": 7,
+          "analyzedCount": 7,
+          "confidence": "High"
+        }
+      },
+      "episodeCoverage": {
+        "episodeCount": 112,
+        "editedEpisodeCount": 112,
+        "closedEpisodeCount": 0,
+        "recoveredEpisodeCount": 0
+      },
+      "deliveryEvidenceLevels": [],
+      "sourceGaps": []
+    },
+    "semanticFacets": {
+      "schemaVersion": 1,
+      "status": "supplementary",
+      "entries": [
+        {
+          "id": "session-insight:source-coverage",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "source-coverage",
+            "High"
+          ],
+          "summary": "Analyzed 7 of 7 sessions; 2/6 enabled source roots exist. Use this as the current workspace evidence boundary for final insight cards.",
+          "evidenceRefs": [],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:validation-behavior",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "validation-behavior",
+            "Low"
+          ],
+          "summary": "Validation was mentioned by the user, but no matching command execution was observed: lint (1). Treat this as a validation execution gap until a matching tool command is found in bounded evidence.",
+          "evidenceRefs": [
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-2-1",
+              "type": "user",
+              "line": 3088
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:post-edit-validation",
+          "kind": "rework-correction",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "post-edit-validation",
+            "High"
+          ],
+          "summary": "Observed 112 edit event(s), but no later validation command in the analyzed sample. Route this lead to Harness session-evidence review to inspect the affected Task Episodes and later relevant validation before any finding.",
+          "evidenceRefs": [
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-3-1",
+              "type": "assistant",
+              "line": 5609
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:execution-friction",
+          "kind": "friction-taxonomy",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "execution-friction",
+            "High"
+          ],
+          "summary": "Observed friction category: failed-event (3). Open bounded sessions behind this category before turning it into a user-facing recommendation.",
+          "evidenceRefs": [
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-4-1",
+              "type": "assistant",
+              "line": 5398
+            },
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-4-2",
+              "type": "assistant",
+              "line": 5721
+            },
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-4-3",
+              "type": "assistant",
+              "line": 491
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:tool-mix",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "tool-mix",
+            "High"
+          ],
+          "summary": "Most observed tool: Bash (1626). Use this as workflow evidence, then inspect bounded sessions before claiming user intent.",
+          "evidenceRefs": [
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-5-1",
+              "type": "assistant",
+              "line": 12
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:session-complexity",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "session-complexity",
+            "High"
+          ],
+          "summary": "Observed 5 active long session(s); longest active estimate: 9h 32m. Review task family, outcome, and friction before deciding whether this duration reflects a problem or any decomposition, tool, delegation, or model change is needed.",
+          "evidenceRefs": [
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-6-1",
+              "type": "workspace-directories",
+              "line": 1
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        },
+        {
+          "id": "session-insight:session-usage-efficiency",
+          "kind": "redacted-summary",
+          "episodeRef": null,
+          "status": "candidate",
+          "labels": [
+            "session-usage-efficiency",
+            "High"
+          ],
+          "summary": "本次分析覆盖 7 个会话，其中 5 个达到活跃长会话阈值，最长约 572 分钟；另有 1 个长跨度主要来自暂停或恢复。 这些活动证据只描述投入；当前 token 或 credit 证据不足，不能据此推断模型偏好、质量或节省。",
+          "evidenceRefs": [
+            {
+              "kind": "global-project-jsonl",
+              "id": "session-insight-7-1",
+              "type": "workspace-directories",
+              "line": 1
+            }
+          ],
+          "modelVersion": "session-insights-v1"
+        }
+      ]
+    },
+    "learningCapture": {
+      "schemaVersion": 1,
+      "state": "N/A",
+      "summary": "暂不适用——需要两个可比的观察窗口和一次改进对比。",
+      "interventions": []
+    },
+    "aiAgentPractice": {
+      "inspectedSurfaces": [],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 4,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/skills/better-harness/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/skills/computer-use/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin/skills/create-plugin/SKILL.md",
+            "~/.qoder/plugins/cache/qoderapp-bundler/qoder-context/1.0.61.7f8d7bb7/skills/qoder-context-knowledge-plan/SKILL.md"
+          ]
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 2,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/.mcp.json",
+            "~/.qoder/plugins/cache/qoderapp-bundler/qoder-context/1.0.61.7f8d7bb7/mcp.json"
+          ]
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 5,
+          "paths": [
+            "~/.qoder/plugins/cache/qoderapp-bundler/qoder-context/1.0.61.7f8d7bb7/hooks/hooks.json"
+          ]
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Memories",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            ".github/workflows/release.yml"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 4,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoderapp-bundler/qoder-context/1.0.61.7f8d7bb7/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin"
+          ]
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 4,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/skills/better-harness/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/skills/computer-use/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin/skills/create-plugin/SKILL.md",
+            "~/.qoder/plugins/cache/qoderapp-bundler/qoder-context/1.0.61.7f8d7bb7/skills/qoder-context-knowledge-plan/SKILL.md"
+          ]
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 5,
+          "paths": [
+            "~/.qoder/plugins/cache/qoderapp-bundler/qoder-context/1.0.61.7f8d7bb7/hooks/hooks.json"
+          ]
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 2,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/computer-use/.mcp.json",
+            "~/.qoder/plugins/cache/qoderapp-bundler/qoder-context/1.0.61.7f8d7bb7/mcp.json"
+          ]
+        }
+      ],
+      "repositorySourceRows": [],
+      "memoryDetails": {
+        "contentPolicy": "metadata-only",
+        "scanState": "scanned-empty",
+        "scopeCounts": [],
+        "integrity": {
+          "status": "reviewed",
+          "titleCount": 0,
+          "reviewedTitleCount": 0,
+          "truncated": false,
+          "exactCollisionGroups": 0,
+          "similarityCandidates": 0
+        }
+      }
+    },
+    "usageActivity": {
+      "schemaVersion": 2,
+      "dateBasis": "UTC",
+      "measurementBasis": "session-starts-active-estimate-model-active-session-days-skill-invocations-and-loads",
+      "truncated": false,
+      "dates": [
+        "2026-09-18",
+        "2026-09-19",
+        "2026-09-20",
+        "2026-09-21",
+        "2026-09-22"
+      ],
+      "sessions": {
+        "total": 7,
+        "starts": [
+          2,
+          1,
+          1,
+          1,
+          2
+        ],
+        "activeMinutes": [
+          148.5,
+          503.3,
+          24.2,
+          571.8,
+          253.7
+        ]
+      },
+      "models": [],
+      "skills": []
+    },
+    "usageEfficiency": {
+      "schemaVersion": 2,
+      "selection": {
+        "strategy": "all-eligible",
+        "eligibleSessionCount": 7,
+        "analyzedSessionCount": 7,
+        "complete": true
+      },
+      "roles": {
+        "userThreadCandidateCount": 7,
+        "childAgentCandidateCount": 0
+      },
+      "longSessions": {
+        "activeCount": 5,
+        "wallOnlyCount": 1,
+        "longestActiveMinutes": 571.8,
+        "activeRatio": 0.7143,
+        "estimate": {
+          "method": "capped-event-gap",
+          "activeThresholdMinutes": 45,
+          "gapCapMinutes": 5,
+          "idleGapMinutes": 30
+        },
+        "samples": [
+          {
+            "alias": "S1",
+            "role": "user-thread-candidate",
+            "activeMinutes": 571.8,
+            "failureCount": 2
+          },
+          {
+            "alias": "S2",
+            "role": "user-thread-candidate",
+            "activeMinutes": 503.3,
+            "failureCount": 0
+          },
+          {
+            "alias": "S3",
+            "role": "user-thread-candidate",
+            "activeMinutes": 138.9,
+            "failureCount": 0
+          },
+          {
+            "alias": "S4",
+            "role": "user-thread-candidate",
+            "activeMinutes": 118,
+            "failureCount": 0
+          }
+        ]
+      },
+      "accounting": {
+        "mode": "effort-proxy",
+        "responseCount": 0,
+        "modelAttributedResponseCount": 0,
+        "unattributedResponseCount": 0,
+        "usageFieldObservedCount": 0,
+        "nonZeroUsageCount": 0,
+        "exactCreditsAvailable": false,
+        "pricingVersion": null
+      },
+      "modelUsage": [],
+      "outcomeReview": {
+        "status": "required",
+        "reviewedCandidateCount": 0,
+        "reviewedActiveLongCount": 0,
+        "comparableModelOutcomeEvidence": false,
+        "recommendation": "controlled-a-b-required"
+      },
+      "reviewLead": {
+        "id": "session-usage-outcome-review-gap",
+        "title": "5 个长会话候选仍待结果复核",
+        "reason": "7 个已分析会话中有 5 个（71.4%）超过估算活跃时长阈值，最长估算为 571.8 分钟，其中 0 个已有结果复核；另有 1 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。",
+        "expectedOutcome": "每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。",
+        "aiFixPrompt": "/better-harness 复核这些会话\n\n5 个长会话候选仍待结果复核\n\n## 先核对的会话\n\n- S1：用户会话候选，估算活跃约 571.8 分钟，失败事件 2 次\n- S2：用户会话候选，估算活跃约 503.3 分钟，失败事件 0 次\n- S3：用户会话候选，估算活跃约 138.9 分钟，失败事件 0 次\n- S4：用户会话候选，估算活跃约 118 分钟，失败事件 0 次\n- 当前展示 5 个未复核活跃长会话中的 4 个；其余 1 个继续通过同一个有界 review packet 复核。\n\n## 先做什么\n\n在操作系统临时目录创建 <run>，从项目根运行：\n\n```bash\nnode scripts/session-analysis.mjs insights --platform qoder --workspace . --selection all-eligible --limit 1000 --format json --output <run>/insights.json\nnode scripts/session-analysis/usage-review-packet.mjs --source <run>/insights.json --workspace . --limit 8 --output <run>/.review-packet.json\n```\n\n私有 review packet 会在本地解析候选；只为 S1, S2, S3, S4 写入 taskFamily、outcome、friction、confidence 和 evidenceReason。先完成复核，不改业务代码，也不创建 Memory、Skill 或 Hook。\n\n## 我们看到了什么\n\n7 个已分析会话中有 5 个（71.4%）超过估算活跃时长阈值，最长估算为 571.8 分钟，其中 0 个已有结果复核；另有 1 个长跨度可能来自空闲或恢复。这只是调查线索，尚未确认存在效率、任务拆分、工具链或模型问题。\n\n## 为什么值得复核\n\n未复核前无法区分复杂任务、工具链摩擦、暂停恢复噪音或正常的长任务。\n\n## 预期结果\n\n每个展示候选都完成任务族、结果和摩擦分类，让报告能够判断是否真的需要改进。\n\n## 范围\n\n只生成隐私安全的会话效率复核和 reader report，不改业务代码，不把墙钟跨度当作活跃成本。持久报告只保留匿名别名；私有 review packet 不得复制进报告。这是 4/5 的有界视图（4/N）；只对展示样本下结论，其余候选保持未复核。\n\n## 怎样算完成\n\n<run>/.review.json 对 S1, S2, S3, S4 各有一条有效复核；语义复核生成 <run>/insights.reviewed.json；<run>/report.md 以 reviewed source 校验通过。复核未确认问题时，不创建优化项。\n\n## 验证\n\n- 运行 `node scripts/session-analysis/usage-semantic-review.mjs --source <run>/insights.json --packet <run>/.review-packet.json --review <run>/.review.json --output <run>/insights.reviewed.json`\n- 运行 `node scripts/session-analysis/validate-usage-report.mjs --source <run>/insights.reviewed.json --report <run>/report.md`，必须返回 `ok: true`\n- 确认 reviewed source 的 `outcomeReview.reviewedActiveLongCount` 等于已复核的展示别名数；通过后删除两个私有临时 review 文件",
+        "sampleCoverage": {
+          "shown": 4,
+          "total": 5,
+          "complete": false
+        }
+      }
+    },
+    "projectName": "Lineart_Painter",
+    "locale": "zh-CN",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 26,
+    "overview": "本次为会话受限评审：可采信的会话证据不足以构建可比任务片段，故以项目静态证据为主。Lineart Painter 有清晰的 README 上下文与一套覆盖核心处理 API 的回归脚本，但主要缺口集中在反馈与交付门禁：仓库唯一的 CI 工作流从不运行该回归测试即发布、改动最频繁的 Web 入口缺少可追溯的失败诊断、运行依赖无法从清单一次性可复现安装。评分按保守取值。",
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "任务理解",
+        "score": 64,
+        "summary": "README 清晰给出 Web/CLI 入口、目录结构与各模块一句话职责，agent 能据此定位上下文与边界；但缺少面向编码 agent 的项目级指引，且行为侧证据未被采信（会话受限）。",
+        "findingRefs": []
+      },
+      {
+        "id": "controlled-execution",
+        "label": "可控执行",
+        "score": 55,
+        "findingRefs": [
+          "webui-entrypoint-no-traceable-feedback",
+          "runtime-deps-not-installable-from-manifest"
+        ],
+        "summary": "启动/运行路径有文档但无一键 doctor 复现；最频繁改动的 Web 入口缺少可追溯的失败信号，运行依赖也无法从清单一次性可复现安装。权限侧有正向证据（下载目录 realpath 校验、配置名清洗、默认仅绑定本机）。"
+      },
+      {
+        "id": "change-validation",
+        "label": "改动验证",
+        "score": 48,
+        "findingRefs": [
+          "release-pipeline-never-runs-regression-test",
+          "webui-entrypoint-no-traceable-feedback"
+        ],
+        "summary": "存在覆盖核心处理 API 的 smoke_test.py 回归脚本（Present），但没有任何流水线执行它，且改动最频繁的 webui HTTP 契约无映射聚焦检查；测试/运行结果未在本次取证。"
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "可靠交付",
+        "score": 45,
+        "findingRefs": [
+          "release-pipeline-never-runs-regression-test"
+        ],
+        "summary": "发布以推送 v* 标签触发 release.yml，但该交付边界未绑定任何自动验证；外部审批、分支保护与实际发布结果未取证（Unverified）。"
+      },
+      {
+        "id": "learning-capture",
+        "label": "经验沉淀",
+        "score": 38,
+        "summary": "会话受限：可采信的任务片段不足，重复工作流与学习捕获机会无法判定（insufficient-recurrence）；项目侧亦无 Skills/Memory 等可复用资产（属覆盖图事实，非缺陷）。保持 Unobserved。",
+        "findingRefs": []
+      }
+    ],
+    "assignmentSummaries": []
+  },
+  "findings": [
+    {
+      "id": "release-pipeline-never-runs-regression-test",
+      "title": "发布流水线从不运行项目自带的回归测试",
+      "severity": "Medium",
+      "reason": "README 把 smoke_test.py 描述为自动化回归测试，脚本确实对 lineart_painter 的 process_image/process_video 跨引擎跑一遍并断言产物；但仓库唯一的 CI 工作流 .github/workflows/release.yml 仅在推送 v* 标签时安装最小子集依赖后直接 PyInstaller 打包发布，全程没有调用 smoke_test.py 或任何测试。后果：核心处理引擎与神经适配路径的回归可以在零自动测试信号的情况下被打标签发布，唯一的测试层只有靠人记得手动运行才会给出反馈。外部可能存在仓库外的分支保护或其它工作流执行该测试，本地未取证。",
+      "dimensionRefs": [
+        "change-validation",
+        "reliable-delivery"
+      ],
+      "expectedArtifact": "Workflow",
+      "expectedOutput": [
+        "Update the existing Workflow owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\n为发布流程接入项目已有的回归测试：在 .github/workflows/release.yml 打包发布之前，新增一个安装依赖并运行 smoke_test.py 的步骤，以其退出码作为发布前置门禁；若完整回归依赖模型权重无法在 CI 环境运行，则改为运行 smoke_test.py --fast 可覆盖的最小子集，并在步骤说明中记录未覆盖部分。范围：仅修改该工作流及必要的测试调用参数，不改动被测的 lineart_painter 业务代码。\n\n## 验证\n\n- 在一次标签或手动触发运行中确认该步骤实际调用了 smoke_test.py，且其非零退出码能阻断发布\n- 确认失败时保留了可定位的 PASS/FAIL 现场（smoke_out 目录）"
+    },
+    {
+      "id": "webui-entrypoint-no-traceable-feedback",
+      "title": "改动最频繁的 Web 入口缺少可事后追溯的失败诊断信号",
+      "severity": "Medium",
+      "reason": "webui.py 是改动最频繁的文件（承载应用 HTTP 契约与作业编排），但项目现有回归脚本 smoke_test.py 只 import lineart_painter、其检查对象不触及 webui 的请求/参数处理路径；同时 Handler.log_message 被覆写为 pass（抑制 HTTP 访问日志），作业异常仅经 traceback 存入内存状态并通过 /api/status 轮询回传给前端。后果：对请求处理逻辑的改动没有任何会暴露它的针对性检查，且服务进程端不留持久、可关联的日志——一旦请求结束且没有在线轮询客户端，就难以事后复现与定位一次失败。此为静态阅读得出的诊断能力判断，未运行验证。",
+      "dimensionRefs": [
+        "change-validation",
+        "controlled-execution"
+      ],
+      "expectedArtifact": "Test",
+      "expectedOutput": [
+        "Update the existing Test owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\n为最频繁改动的 Web 入口补上可追溯的反馈：(1) 针对 webui.py 的请求参数解析与 /api/status 作业状态回传新增最小聚焦测试，可参照 smoke_test.py 的断言与退出码风格，覆盖一条成功入参与一条错误入参路径；(2) 让服务在处理请求失败时留下可事后定位的证据，例如恢复访问日志或为每次作业写入带关联标识的持久日志，使无在线轮询客户端时仍可追溯。范围：仅修改 webui.py 的日志/异常路径与其测试文件，不改变现有 API 契约语义。\n\n## 验证\n\n- 运行新增的 webui 聚焦测试，确认错误入参用例会暴露问题\n- 触发一次请求错误，确认服务端日志能事后重建触发、决策边界、失败与结果"
+    },
+    {
+      "id": "runtime-deps-not-installable-from-manifest",
+      "title": "应用运行依赖无法从依赖清单一次性可复现安装",
+      "severity": "Low",
+      "reason": "requirements.txt 只声明 huggingface_hub，并注释说明主程序依赖见 README；真实运行时依赖（numpy、opencv-python，以及神经功能所需的 torch/diffusers/transformers/onnxruntime 等）只以 README 散文出现且无版本锁定。后果：agent 或新环境无法通过一次 pip install -r requirements.txt 得到可运行安装，必须从说明手工复制、且无锁定版本；叠加 CI 也只用最小子集构建，环境可复现性没有任何自动门禁会暴露其偏差。若项目并不要求可复现安装，则此项为次要取舍。",
+      "dimensionRefs": [
+        "controlled-execution"
+      ],
+      "expectedArtifact": "Config",
+      "expectedOutput": [
+        "Update the existing Config owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "aiFixPrompt": "/better-harness fix this issue\n\n让应用运行依赖可以从清单一次性复现：把 README 中列出的主程序与可选神经功能依赖整理进 requirements.txt（或分层为 requirements.txt 与 requirements-neural.txt），并对关键包加入版本上界或锁定；同时把 README 快速开始里的安装命令改为直接安装该清单。范围：仅修改依赖清单与 README 安装说明，不改动运行时代码。\n\n## 验证\n\n- 在干净虚拟环境执行 pip install -r requirements.txt 后，确认应用可导入并启动到 Web 入口\n- 确认清单中的依赖与 README 描述一致，并给出可复现的版本约束"
+    }
+  ]
+}
